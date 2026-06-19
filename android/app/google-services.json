@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "142801367991",
+    "project_id": "healwin-4d6f0-c990d",
+    "storage_bucket": "healwin-4d6f0-c990d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:142801367991:android:827d7d6b04910593c26e32",
+        "android_client_info": {
+          "package_name": "com.healwindrivernew"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDjzyptw5_51JNh_gk53h1BlrLVvNLxwFk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:142801367991:android:5451def902a40d18c26e32",
+        "android_client_info": {
+          "package_name": "com.healwinpatientnew"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDjzyptw5_51JNh_gk53h1BlrLVvNLxwFk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
