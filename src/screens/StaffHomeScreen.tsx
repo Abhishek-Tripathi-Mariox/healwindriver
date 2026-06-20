@@ -63,6 +63,20 @@ export const StaffHomeScreen: React.FC = () => {
   const tiles = isAttendant ? ATTENDANT_TILES : DRIVER_TILES;
   const [dispatch, setDispatch] = useState<any | null>(null);
   const [unread, setUnread] = useState(0);
+  const [dutyBusy, setDutyBusy] = useState(false);
+
+  // Persist duty with real feedback — on failure it reverts + tells the user
+  // (the old toggle silently swallowed errors, so it looked like "nothing
+  // happened").
+  const onToggleDuty = async () => {
+    if (dutyBusy) return;
+    setDutyBusy(true);
+    const ok = await dutyStore.set(!onDuty);
+    if (!ok) {
+      Alert.alert('Could not update duty', 'Please check your connection and try again.');
+    }
+    setDutyBusy(false);
+  };
 
   // Ask for permissions up front, then push one location fix so the vehicle has
   // a real position (and a real distance from the patient) right away — even
@@ -144,7 +158,11 @@ export const StaffHomeScreen: React.FC = () => {
                   : 'Go on duty to receive emergency dispatches.'}
             </Text>
           </View>
-          <Pressable onPress={() => dutyStore.toggle()} style={[styles.switch, onDuty ? styles.switchOn : styles.switchOff]}>
+          <Pressable
+            disabled={dutyBusy}
+            onPress={onToggleDuty}
+            style={[styles.switch, onDuty ? styles.switchOn : styles.switchOff, dutyBusy && { opacity: 0.6 }]}
+          >
             <View style={[styles.knob, onDuty ? styles.knobOn : styles.knobOff]} />
           </Pressable>
         </View>

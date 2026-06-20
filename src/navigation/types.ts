@@ -13,6 +13,7 @@ export type RootStackParamList = {
   Trips: undefined;
   Earnings: undefined;
   Shifts: undefined;
+  ShiftDetail: { shift: any };
   Profile: undefined;
   EditProfile: undefined;
   Notifications: undefined;
@@ -23,6 +24,7 @@ export type RootStackParamList = {
   CaseNotes: undefined;
   StockRequest: undefined;
   TripHistory: undefined;
+  TripDetail: { trip: any };
   ApplyLeave: undefined;
   AddLeave: undefined;
   StaffProfile: undefined;

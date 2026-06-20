@@ -14,6 +14,7 @@ import { HospitalSelectScreen } from '../screens/HospitalSelectScreen';
 import { TripsScreen } from '../screens/TripsScreen';
 import { EarningsScreen } from '../screens/EarningsScreen';
 import { ShiftsScreen } from '../screens/ShiftsScreen';
+import { ShiftDetailScreen } from '../screens/ShiftDetailScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
@@ -24,6 +25,7 @@ import { AddPatientScreen } from '../screens/AddPatientScreen';
 import { CaseNotesScreen } from '../screens/CaseNotesScreen';
 import { StockRequestScreen } from '../screens/StockRequestScreen';
 import { TripHistoryScreen } from '../screens/TripHistoryScreen';
+import { TripDetailScreen } from '../screens/TripDetailScreen';
 import { ApplyLeaveScreen } from '../screens/ApplyLeaveScreen';
 import { AddLeaveScreen } from '../screens/AddLeaveScreen';
 import { StaffProfileScreen } from '../screens/StaffProfileScreen';
@@ -55,6 +57,7 @@ export const RootNavigator: React.FC = () => (
     <Stack.Screen name="Trips" component={TripsScreen} />
     <Stack.Screen name="Earnings" component={EarningsScreen} />
     <Stack.Screen name="Shifts" component={ShiftsScreen} />
+    <Stack.Screen name="ShiftDetail" component={ShiftDetailScreen} />
     <Stack.Screen name="Profile" component={ProfileScreen} />
     <Stack.Screen name="EditProfile" component={EditProfileScreen} />
     <Stack.Screen name="Notifications" component={NotificationsScreen} />
@@ -65,6 +68,7 @@ export const RootNavigator: React.FC = () => (
     <Stack.Screen name="CaseNotes" component={CaseNotesScreen} />
     <Stack.Screen name="StockRequest" component={StockRequestScreen} />
     <Stack.Screen name="TripHistory" component={TripHistoryScreen} />
+    <Stack.Screen name="TripDetail" component={TripDetailScreen} />
     <Stack.Screen name="ApplyLeave" component={ApplyLeaveScreen} />
     <Stack.Screen name="AddLeave" component={AddLeaveScreen} />
     <Stack.Screen name="StaffProfile" component={StaffProfileScreen} />

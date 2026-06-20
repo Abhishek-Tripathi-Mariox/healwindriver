@@ -6,28 +6,33 @@ let onDuty = false;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
 
-// Persist duty state to the backend for whichever role is logged in.
+// Persist duty state to the backend for whichever role is logged in. Throws on
+// failure so `set()` can revert + surface an error (previously this swallowed
+// errors, so a failed toggle silently "did nothing").
 const syncRemote = async (v: boolean) => {
   const role = await storage.getRole();
-  try {
-    // Backend (+ validator) reads `isDutyOn`; sending `onDuty` alone failed
-    // validation, so the crew never actually went online and admin dispatch
-    // saw no available ambulance.
-    if (role === 'staff') await api.post('/ambulance-staff/duty', { isDutyOn: v, onDuty: v });
-    else if (role === 'driver') await api.post('/driver/status/toggle', { isOnline: v });
-  } catch {
-    /* best-effort */
-  }
+  if (role === 'staff') await api.post('/ambulance-staff/duty', { isDutyOn: v });
+  else if (role === 'driver') await api.post('/driver/status/toggle', { isOnline: v });
 };
 
 export const dutyStore = {
   get: () => onDuty,
-  // Returns the remote-sync promise so callers (e.g. logout) can await the
-  // backend update before the auth token is dropped.
-  set(v: boolean, sync = true): Promise<void> {
+  // Optimistically flips the UI, then persists. On backend failure it REVERTS
+  // and resolves `false` so the caller can show an error (never throws, so
+  // fire-and-forget callers like logout stay safe).
+  async set(v: boolean, sync = true): Promise<boolean> {
+    const prev = onDuty;
     onDuty = v;
     emit();
-    return sync ? syncRemote(v) : Promise.resolve();
+    if (!sync) return true;
+    try {
+      await syncRemote(v);
+      return true;
+    } catch {
+      onDuty = prev;
+      emit();
+      return false;
+    }
   },
   toggle() {
     void this.set(!onDuty);

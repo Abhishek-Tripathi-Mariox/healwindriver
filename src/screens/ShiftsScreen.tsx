@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -19,33 +19,40 @@ interface Shift {
   vehicle: string;
   state: 'now' | 'upcoming' | 'done';
   clockedIn: boolean;
+  raw: any;
 }
 
 const fmtDay = (iso?: string) => {
   if (!iso) return '';
   const d = new Date(iso);
-  if (!Number.isFinite(d.getTime())) return String(iso);
+  if (!Number.isFinite(d.getTime())) return '';
   return d.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' });
 };
+const fmtTime = (iso?: string) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return '';
+  return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+};
 
+// Shift model fields: startAt / endAt (Date), ambulanceId (populated), status.
 const mapShift = (s: any): Shift => {
-  const start = s.startTime || s.start || s.shiftStart || '';
-  const end = s.endTime || s.end || s.shiftEnd || '';
-  const amb = s.ambulance || s.vehicle || {};
-  const reg = amb.registrationNumber || amb.regNumber || amb.number || s.vehicleNumber || '';
-  const type = amb.type || amb.category || s.vehicleType || '';
-  const clockedIn = !!(s.clockInAt || s.clockedInAt) && !(s.clockOutAt || s.clockedOutAt);
+  const amb = s.ambulanceId || s.ambulance || {};
+  const reg = amb.registrationNumber || '';
+  const type = amb.ambulanceType || amb.type || '';
+  const clockedIn = !!s.clockInAt && !s.clockOutAt;
   const status = String(s.status || '').toLowerCase();
   let state: Shift['state'] = 'upcoming';
-  if (clockedIn || status === 'active' || status === 'ongoing') state = 'now';
-  else if (status === 'completed' || s.clockOutAt) state = 'done';
+  if (clockedIn || status === 'active') state = 'now';
+  else if (status === 'completed' || status === 'cancelled' || status === 'missed' || s.clockOutAt) state = 'done';
   return {
     id: String(s._id || s.id || ''),
-    day: fmtDay(s.date || s.shiftDate) || s.day || 'Shift',
-    time: [start, end].filter(Boolean).join(' – ') || s.timeLabel || '',
+    day: fmtDay(s.startAt) || 'Shift',
+    time: s.startAt && s.endAt ? `${fmtTime(s.startAt)} – ${fmtTime(s.endAt)}` : fmtTime(s.startAt),
     vehicle: [reg, type].filter(Boolean).join(' · '),
     state,
     clockedIn,
+    raw: s,
   };
 };
 
@@ -82,8 +89,11 @@ export const ShiftsScreen: React.FC = () => {
       if (s.clockedIn) await staffApi.clockOut(s.id);
       else await staffApi.clockIn(s.id);
       load();
-    } catch {
-      /* ignore */
+    } catch (e: any) {
+      Alert.alert(
+        s.clockedIn ? 'Could not clock out' : 'Could not clock in',
+        e?.message || 'Please try again.',
+      );
     } finally {
       setBusy(null);
     }
@@ -100,7 +110,11 @@ export const ShiftsScreen: React.FC = () => {
             <Text style={styles.note}>No shifts assigned yet.</Text>
           ) : (
             shifts.map((s) => (
-              <View key={s.id} style={[styles.card, cardShadow]}>
+              <Pressable
+                key={s.id}
+                onPress={() => navigation.navigate('ShiftDetail', { shift: s.raw })}
+                style={({ pressed }) => [styles.card, cardShadow, pressed && styles.pressed]}
+              >
                 <View style={styles.iconWrap}>
                   <ClockIcon size={scale(22)} color={colors.directionsBlue} />
                 </View>
@@ -108,6 +122,7 @@ export const ShiftsScreen: React.FC = () => {
                   <Text style={styles.day}>{s.day}</Text>
                   {!!s.time && <Text style={styles.time}>{s.time}</Text>}
                   {!!s.vehicle && <Text style={styles.vehicle}>{s.vehicle}</Text>}
+                  {s.state === 'now' && <Text style={styles.live}>● On shift</Text>}
                 </View>
                 {s.state !== 'done' ? (
                   <Pressable
@@ -120,7 +135,7 @@ export const ShiftsScreen: React.FC = () => {
                 ) : (
                   <Text style={[styles.badge, styles.badgeDone]}>Done</Text>
                 )}
-              </View>
+              </Pressable>
             ))
           )}
         </ScrollView>
@@ -137,6 +152,7 @@ const styles = StyleSheet.create({
   day: { fontFamily: fonts.semiBold, fontSize: scale(15), color: colors.textBlack },
   time: { fontFamily: fonts.medium, fontSize: scale(13), color: colors.textPrimary, marginTop: verticalScale(3) },
   vehicle: { fontFamily: fonts.regular, fontSize: scale(11), color: colors.inkMuted, marginTop: verticalScale(3) },
+  live: { fontFamily: fonts.semiBold, fontSize: scale(11), color: '#2E9B2E', marginTop: verticalScale(4) },
   clock: { paddingHorizontal: scale(14), height: verticalScale(36), borderRadius: scale(10), alignItems: 'center', justifyContent: 'center' },
   clockIn: { backgroundColor: colors.payGreen },
   clockOut: { backgroundColor: colors.brandRed },
