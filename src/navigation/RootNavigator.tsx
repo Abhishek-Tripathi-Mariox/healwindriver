@@ -13,8 +13,10 @@ import { ActiveDispatchScreen } from '../screens/ActiveDispatchScreen';
 import { HospitalSelectScreen } from '../screens/HospitalSelectScreen';
 import { TripsScreen } from '../screens/TripsScreen';
 import { EarningsScreen } from '../screens/EarningsScreen';
+import { DriverWalletScreen } from '../screens/DriverWalletScreen';
 import { ShiftsScreen } from '../screens/ShiftsScreen';
 import { ShiftDetailScreen } from '../screens/ShiftDetailScreen';
+import { StaffEarningsScreen } from '../screens/StaffEarningsScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
@@ -56,8 +58,10 @@ export const RootNavigator: React.FC = () => (
     <Stack.Screen name="HospitalSelect" component={HospitalSelectScreen} />
     <Stack.Screen name="Trips" component={TripsScreen} />
     <Stack.Screen name="Earnings" component={EarningsScreen} />
+    <Stack.Screen name="DriverWallet" component={DriverWalletScreen} />
     <Stack.Screen name="Shifts" component={ShiftsScreen} />
     <Stack.Screen name="ShiftDetail" component={ShiftDetailScreen} />
+    <Stack.Screen name="StaffEarnings" component={StaffEarningsScreen} />
     <Stack.Screen name="Profile" component={ProfileScreen} />
     <Stack.Screen name="EditProfile" component={EditProfileScreen} />
     <Stack.Screen name="Notifications" component={NotificationsScreen} />

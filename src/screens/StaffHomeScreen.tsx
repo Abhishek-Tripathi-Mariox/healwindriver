@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -17,6 +17,7 @@ import {
   MapPinIcon,
   NotesIcon,
   PersonIcon,
+  WalletIcon,
 } from '../components/icons';
 import { useDuty, dutyStore } from '../state/dutyStore';
 import { dispatchStore } from '../state/dispatchStore';
@@ -37,6 +38,7 @@ interface Tile {
 // A driver's home is dispatch/driving-focused; an attendant's is patient-care.
 const DRIVER_TILES: Tile[] = [
   { key: 'trips', label: 'My Trips', Icon: BookingIcon, route: 'TripHistory' },
+  { key: 'earnings', label: 'Earnings', Icon: WalletIcon, route: 'StaffEarnings' },
   { key: 'shifts', label: 'My Shifts', Icon: ClockIcon, route: 'Shifts' },
   { key: 'notifications', label: 'Notifications', Icon: BellIcon, route: 'StaffNotifications' },
   { key: 'profile', label: 'Profile', Icon: PersonIcon, route: 'StaffProfile' },
@@ -46,6 +48,7 @@ const ATTENDANT_TILES: Tile[] = [
   { key: 'notes', label: 'Case Notes', Icon: NotesIcon, route: 'CaseNotes' },
   { key: 'stock', label: 'Stock Request', Icon: BoxIcon, route: 'StockRequest' },
   { key: 'trips', label: 'Trip History', Icon: BookingIcon, route: 'TripHistory' },
+  { key: 'earnings', label: 'Earnings', Icon: WalletIcon, route: 'StaffEarnings' },
   { key: 'leave', label: 'Apply Leave', Icon: BookingIcon, route: 'ApplyLeave' },
   { key: 'profile', label: 'Profile', Icon: PersonIcon, route: 'StaffProfile' },
 ];
@@ -64,18 +67,32 @@ export const StaffHomeScreen: React.FC = () => {
   const [dispatch, setDispatch] = useState<any | null>(null);
   const [unread, setUnread] = useState(0);
   const [dutyBusy, setDutyBusy] = useState(false);
+  // Off-duty reason picker.
+  const [reasonOpen, setReasonOpen] = useState(false);
+  const [reasons, setReasons] = useState<{ _id: string; label: string }[]>([]);
 
-  // Persist duty with real feedback — on failure it reverts + tells the user
-  // (the old toggle silently swallowed errors, so it looked like "nothing
-  // happened").
+  const applyDuty = async (v: boolean, reasonId?: string) => {
+    setDutyBusy(true);
+    const ok = await dutyStore.set(v, true, reasonId);
+    if (!ok) Alert.alert('Could not update duty', 'Please check your connection and try again.');
+    setDutyBusy(false);
+  };
+
+  // Going ON duty is instant; going OFF shows a reason picker (optional) so ops
+  // know why the crew is unavailable.
   const onToggleDuty = async () => {
     if (dutyBusy) return;
-    setDutyBusy(true);
-    const ok = await dutyStore.set(!onDuty);
-    if (!ok) {
-      Alert.alert('Could not update duty', 'Please check your connection and try again.');
+    if (!onDuty) {
+      void applyDuty(true);
+      return;
     }
-    setDutyBusy(false);
+    setReasonOpen(true);
+    staffApi.offDutyReasons().then((r: any[]) => setReasons(r || [])).catch(() => setReasons([]));
+  };
+
+  const pickReason = (reasonId?: string) => {
+    setReasonOpen(false);
+    void applyDuty(false, reasonId);
   };
 
   // Ask for permissions up front, then push one location fix so the vehicle has
@@ -227,6 +244,23 @@ export const StaffHomeScreen: React.FC = () => {
           ))}
         </View>
       </ScrollView>
+
+      {/* Off-duty reason picker */}
+      <Modal visible={reasonOpen} transparent animationType="slide" onRequestClose={() => setReasonOpen(false)}>
+        <Pressable style={styles.backdrop} onPress={() => setReasonOpen(false)} />
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + verticalScale(16) }]}>
+          <View style={styles.handle} />
+          <Text style={styles.sheetTitle}>Why are you going off duty?</Text>
+          {reasons.map((r) => (
+            <Pressable key={r._id} onPress={() => pickReason(r._id)} style={styles.reasonRow}>
+              <Text style={styles.reasonText}>{r.label}</Text>
+            </Pressable>
+          ))}
+          <Pressable onPress={() => pickReason(undefined)} style={styles.reasonSkip}>
+            <Text style={styles.reasonSkipText}>Go off duty without a reason</Text>
+          </Pressable>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -289,4 +323,12 @@ const styles = StyleSheet.create({
   tile: { width: '47%', flexGrow: 1, backgroundColor: colors.surface, borderRadius: radius.card, padding: scale(16), gap: verticalScale(10) },
   tileIcon: { width: scale(44), height: scale(44), borderRadius: scale(12), backgroundColor: '#EAF1FE', alignItems: 'center', justifyContent: 'center' },
   tileLabel: { fontFamily: fonts.semiBold, fontSize: scale(14), color: colors.textBlack },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)' },
+  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.background, borderTopLeftRadius: scale(18), borderTopRightRadius: scale(18), paddingHorizontal: spacing.lg, paddingTop: verticalScale(10) },
+  handle: { alignSelf: 'center', width: scale(90), height: scale(4), borderRadius: scale(3), backgroundColor: '#C9CDD2', marginBottom: verticalScale(14) },
+  sheetTitle: { fontFamily: fonts.bold, fontSize: scale(16), color: colors.textBlack, marginBottom: verticalScale(8) },
+  reasonRow: { paddingVertical: verticalScale(14), borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E2E2E2' },
+  reasonText: { fontFamily: fonts.medium, fontSize: scale(15), color: colors.textBlack },
+  reasonSkip: { paddingVertical: verticalScale(16), alignItems: 'center', marginTop: verticalScale(4) },
+  reasonSkipText: { fontFamily: fonts.semiBold, fontSize: scale(14), color: colors.inkMuted },
 });

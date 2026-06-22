@@ -34,6 +34,17 @@ export const driverApi = {
       Array.isArray(d) ? d : d?.items ?? d?.bookings ?? [],
     ),
 
+  // Wallet + bank (for payouts/withdrawals).
+  wallet: () => api.get<{ balance: number }>('/driver/wallet'),
+  walletTransactions: () =>
+    api.get<any>('/driver/wallet/transactions').then((d) =>
+      Array.isArray(d) ? d : d?.items ?? d?.transactions ?? [],
+    ),
+  withdraw: (amount: number) => api.post<{ newBalance: number }>('/driver/wallet/withdraw', { amount }),
+  bankDetails: () => api.get<any>('/driver/bank-details'),
+  saveBankDetails: (data: { accountHolderName: string; bankName: string; accountNumber: string; ifscCode: string }) =>
+    api.post('/driver/bank-details', data),
+
   notifications: () =>
     api.get<any>('/driver/notifications').then((d) => ({
       items: Array.isArray(d) ? d : d?.items ?? d?.notifications ?? [],

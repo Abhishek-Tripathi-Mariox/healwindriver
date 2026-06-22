@@ -37,6 +37,7 @@ interface Tile {
 const TILES: Tile[] = [
   { key: 'trips', label: 'My Trips', Icon: BookingIcon, route: 'Trips' },
   { key: 'earnings', label: 'Earnings', Icon: WalletIcon, route: 'Earnings' },
+  { key: 'wallet', label: 'Wallet & Bank', Icon: WalletIcon, route: 'DriverWallet' },
   { key: 'shifts', label: 'My Shifts', Icon: ClockIcon, route: 'Shifts' },
   { key: 'profile', label: 'Profile', Icon: PersonIcon, route: 'Profile' },
 ];

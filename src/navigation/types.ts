@@ -12,8 +12,10 @@ export type RootStackParamList = {
   HospitalSelect: undefined;
   Trips: undefined;
   Earnings: undefined;
+  DriverWallet: undefined;
   Shifts: undefined;
   ShiftDetail: { shift: any };
+  StaffEarnings: undefined;
   Profile: undefined;
   EditProfile: undefined;
   Notifications: undefined;

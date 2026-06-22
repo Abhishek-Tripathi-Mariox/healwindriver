@@ -49,7 +49,11 @@ export const staffApi = {
   clockIn: (shiftId: string) => api.post(`/ambulance-staff/shifts/${shiftId}/clock-in`, {}),
   clockOut: (shiftId: string) => api.post(`/ambulance-staff/shifts/${shiftId}/clock-out`, {}),
 
-  earnings: () => api.get('/ambulance-staff/earnings'),
+  earnings: () => api.get<any>('/ambulance-staff/earnings'),
+  offDutyReasons: () =>
+    api.get<any>('/ambulance-staff/off-duty-reasons').then((d) =>
+      Array.isArray(d) ? d : d?.items ?? d?.reasons ?? [],
+    ),
   notifications: () =>
     api.get<any>('/ambulance-staff/notifications').then((d) => ({
       items: Array.isArray(d) ? d : d?.items ?? d?.notifications ?? [],
