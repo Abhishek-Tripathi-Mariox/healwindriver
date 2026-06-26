@@ -5,6 +5,10 @@ export type RootStackParamList = {
   Otp: { mobileNumber: string; txnId: string; role: 'driver' | 'staff' };
   Onboarding: undefined;
 
+  // Support tickets (shared by driver + staff)
+  Tickets: undefined;
+  TicketDetail: { id: string };
+
   // Driver
   DriverHome: undefined;
   IncomingDispatch: undefined;

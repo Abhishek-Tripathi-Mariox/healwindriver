@@ -61,7 +61,6 @@ export const TrackMap: React.FC<TrackMapProps> = ({ driver, patient, style }) =>
         showsUserLocation={false}
         showsMyLocationButton={false}
         toolbarEnabled={false}
-        loadingEnabled
       >
         {patient && (
           <Marker coordinate={toCoord(patient)} title="Patient" pinColor={colors.brandRed} />

@@ -19,6 +19,10 @@ import type { AppRole } from '../api/storage';
 let unsubs: Array<() => void> = [];
 
 const ringIncoming = (raw: any, role: AppRole) => {
+  // Off-duty crew are unavailable — never ring a new dispatch / SOS at them.
+  // (Status updates for an already-active dispatch go through applyStatus, so
+  // this only suppresses brand-new incoming alerts while off duty.)
+  if (!dutyStore.get()) return;
   let d;
   if (role === 'driver') d = mapBooking(raw);
   else if (raw?.kind === 'request') d = mapAmbulanceRequest(raw); // patient SOS / booking

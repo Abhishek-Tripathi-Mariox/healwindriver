@@ -11,6 +11,7 @@ import {
   BoxIcon,
   ChevronForwardIcon,
   EditIcon,
+  HelpIcon,
   IconProps,
   LogoutIcon,
   NotesIcon,
@@ -37,6 +38,7 @@ const ROWS: Row[] = [
   { key: 'stock', label: 'Stock Update Request', Icon: BoxIcon, route: 'StockRequest' },
   { key: 'leave', label: 'Leave Management', Icon: BookingIcon, route: 'ApplyLeave' },
   { key: 'notifications', label: 'Notifications', Icon: BellIcon, route: 'StaffNotifications' },
+  { key: 'support', label: 'Help & Support', Icon: HelpIcon, route: 'Tickets' },
   { key: 'logout', label: 'Logout', Icon: LogoutIcon, route: 'Login', danger: true },
 ];
 

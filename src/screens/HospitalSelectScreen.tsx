@@ -8,7 +8,7 @@ import { ScreenHeader } from '../components';
 import { MapPinIcon } from '../components/icons';
 import { centresApi, Centre } from '../api/centres';
 import { staffApi } from '../api/staff';
-import { getCurrentPositionOnce } from '../services/location';
+import { getCurrentPositionOnce, getLastPosition } from '../services/location';
 import { dispatchStore, useActiveDispatch } from '../state/dispatchStore';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
 import { cardShadow } from '../theme/shadows';
@@ -27,7 +27,10 @@ export const HospitalSelectScreen: React.FC = () => {
   React.useEffect(() => {
     let alive = true;
     (async () => {
-      const pos = await getCurrentPositionOnce();
+      // Reuse the live fix the active-dispatch screen already keeps warm — the
+      // crew arrives here from there, so this is almost always set and avoids a
+      // fresh (potentially slow) GPS lock. Only fall back to a one-shot fix.
+      const pos = getLastPosition() ?? (await getCurrentPositionOnce());
       if (!pos) {
         if (alive) setLoading(false);
         return;

@@ -33,6 +33,10 @@ import { AddLeaveScreen } from '../screens/AddLeaveScreen';
 import { StaffProfileScreen } from '../screens/StaffProfileScreen';
 import { StaffNotificationsScreen } from '../screens/StaffNotificationsScreen';
 
+// Support tickets (shared by both roles)
+import { TicketsScreen } from '../screens/TicketsScreen';
+import { TicketDetailScreen } from '../screens/TicketDetailScreen';
+
 import { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -77,5 +81,9 @@ export const RootNavigator: React.FC = () => (
     <Stack.Screen name="AddLeave" component={AddLeaveScreen} />
     <Stack.Screen name="StaffProfile" component={StaffProfileScreen} />
     <Stack.Screen name="StaffNotifications" component={StaffNotificationsScreen} />
+
+    {/* Support tickets (shared) */}
+    <Stack.Screen name="Tickets" component={TicketsScreen} />
+    <Stack.Screen name="TicketDetail" component={TicketDetailScreen} />
   </Stack.Navigator>
 );

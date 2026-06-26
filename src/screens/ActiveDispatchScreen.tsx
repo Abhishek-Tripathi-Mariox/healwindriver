@@ -76,6 +76,13 @@ export const ActiveDispatchScreen: React.FC = () => {
   const STEPS = staffFlow ? STAFF_STEPS : BOOKING_STEPS;
   const currentIndex = STEPS.findIndex((s) => s.key === d.status);
 
+  // Only the DRIVER verifies the patient-pickup OTP. An attendant rides along
+  // for care — they must not be able to enter the OTP / start the trip, so the
+  // OTP-gated step is blocked for them (the driver advances it on their device,
+  // and the status syncs over the socket).
+  const isAttendant = authStore.getSnapshot().profile?.staff?.role === 'attendant';
+  const otpBlockedForAttendant = otpRequired(d) && isAttendant;
+
   // Live distance from the crew's own GPS to the patient (falls back to the
   // static dispatch-time value when GPS or patient coordinates aren't available).
   const patientPt =
@@ -107,6 +114,8 @@ export const ActiveDispatchScreen: React.FC = () => {
 
   const onCta = async () => {
     if (busy) return;
+    // Attendants can't start the trip — only the driver enters the pickup OTP.
+    if (otpBlockedForAttendant) return;
     // The ON_SCENE → ON_TRIP step (patient pickup) needs the OTP first.
     if (otpRequired(d)) {
       setOtp('');
@@ -198,8 +207,14 @@ export const ActiveDispatchScreen: React.FC = () => {
       </ScrollView>
 
       <View style={[styles.bar, { paddingBottom: insets.bottom + verticalScale(10) }]}>
-        <Pressable disabled={busy} style={({ pressed }) => [styles.cta, (pressed || busy) && styles.pressed]} onPress={onCta}>
-          <Text style={styles.ctaText}>{ctaLabel()}</Text>
+        <Pressable
+          disabled={busy || otpBlockedForAttendant}
+          style={({ pressed }) => [styles.cta, (pressed || busy || otpBlockedForAttendant) && styles.pressed]}
+          onPress={onCta}
+        >
+          <Text style={styles.ctaText}>
+            {otpBlockedForAttendant ? 'Driver verifies pickup OTP' : ctaLabel()}
+          </Text>
         </Pressable>
       </View>
 

@@ -11,6 +11,7 @@ import {
   ChevronForwardIcon,
   ClockIcon,
   EditIcon,
+  HelpIcon,
   IconProps,
   LogoutIcon,
   WalletIcon,
@@ -59,6 +60,7 @@ const ROWS: Row[] = [
   { key: 'earnings', label: 'Earnings', Icon: WalletIcon, route: 'Earnings' },
   { key: 'cases', label: 'Past Cases', Icon: BookingIcon, route: 'Trips' },
   { key: 'notifications', label: 'Notifications', Icon: BellIcon, route: 'Notifications' },
+  { key: 'support', label: 'Help & Support', Icon: HelpIcon, route: 'Tickets' },
   { key: 'logout', label: 'Logout', Icon: LogoutIcon, route: 'Login', danger: true },
 ];
 

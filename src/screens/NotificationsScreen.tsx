@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -12,12 +12,24 @@ import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
 import { cardShadow } from '../theme/shadows';
 import type { RootStackParamList } from '../navigation/types';
 
+// Screens a notification may deep-link to on tap (guards against bad data).
+const NAV_TARGETS = new Set(['TicketDetail', 'Tickets']);
+
+// Pick the deep-link target + params a notification carries (e.g. a support
+// reply → TicketDetail with the ticket id).
+const linkOf = (data?: Record<string, any>): { target?: string; params?: any } => {
+  const t = (data?.route || data?.screen) as string | undefined;
+  return t && NAV_TARGETS.has(t) ? { target: t, params: data } : {};
+};
+
 interface Notif {
   id: string;
   title: string;
   body: string;
   time: string;
   unread?: boolean;
+  target?: string;
+  params?: Record<string, any>;
 }
 
 const relTime = (iso?: string) => {
@@ -54,6 +66,7 @@ export const NotificationsScreen: React.FC = () => {
                 body: n.body || n.message || '',
                 time: relTime(n.createdAt),
                 unread: true,
+                ...linkOf(n.data),
               },
               ...prev,
             ],
@@ -77,6 +90,7 @@ export const NotificationsScreen: React.FC = () => {
               body: n.body || n.message || n.description || '',
               time: relTime(n.createdAt || n.created_at || n.date),
               unread: n.isRead === false || n.read === false || n.unread === true,
+              ...linkOf(n.data),
             })),
           );
         })
@@ -99,7 +113,12 @@ export const NotificationsScreen: React.FC = () => {
             <Text style={styles.empty}>No notifications yet.</Text>
           ) : (
             items.map((n) => (
-              <View key={n.id} style={[styles.card, cardShadow]}>
+              <Pressable
+                key={n.id}
+                disabled={!n.target}
+                onPress={() => n.target && (navigation.navigate as any)(n.target, n.params)}
+                style={({ pressed }) => [styles.card, cardShadow, pressed && !!n.target && styles.pressed]}
+              >
                 <View style={[styles.icon, { backgroundColor: '#FCE9E9' }]}>
                   <WarningIcon size={scale(20)} />
                 </View>
@@ -111,7 +130,7 @@ export const NotificationsScreen: React.FC = () => {
                   {!!n.body && <Text style={styles.body}>{n.body}</Text>}
                   {!!n.time && <Text style={styles.time}>{n.time}</Text>}
                 </View>
-              </View>
+              </Pressable>
             ))
           )}
         </ScrollView>
@@ -125,6 +144,7 @@ const styles = StyleSheet.create({
   list: { paddingHorizontal: spacing.lg, paddingTop: verticalScale(6), gap: verticalScale(12) },
   empty: { textAlign: 'center', fontFamily: fonts.medium, fontSize: scale(14), color: colors.inkMuted, marginTop: verticalScale(40) },
   card: { flexDirection: 'row', gap: scale(12), backgroundColor: colors.surface, borderRadius: radius.card, padding: scale(14) },
+  pressed: { opacity: 0.7 },
   icon: { width: scale(40), height: scale(40), borderRadius: scale(20), alignItems: 'center', justifyContent: 'center' },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: scale(8) },
   title: { flex: 1, fontFamily: fonts.semiBold, fontSize: scale(14), color: colors.textBlack },

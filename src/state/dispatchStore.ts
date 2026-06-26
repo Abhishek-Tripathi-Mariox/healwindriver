@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { driverApi } from '../api/driver';
 import { staffApi } from '../api/staff';
+import { authStore } from './authStore';
 import type { AppRole } from '../api/storage';
 
 export type DispatchStatus = 'ACKNOWLEDGED' | 'EN_ROUTE' | 'ON_SCENE' | 'ON_TRIP' | 'COMPLETED';
@@ -281,8 +282,15 @@ export const dispatchStore = {
         const raw = res?.dispatch ?? res;
         const d = mapEmergencyDispatch(raw);
         if (d && d.id) {
-          if (String(raw?.status || '').toUpperCase() === 'DISPATCHED') {
-            // Assigned but not yet accepted → ring it.
+          // An attendant is only INFORMED of an inbound patient — they never
+          // accept/reject (that's the driver's job), so the server keeps the
+          // dispatch at DISPATCHED. Re-ringing it on every home focus would pop
+          // the "Patient Inbound" alert forever after they acknowledge once, so
+          // for an attendant we just surface it as the current assignment.
+          const isAttendant =
+            authStore.getSnapshot().profile?.staff?.role === 'attendant';
+          if (!isAttendant && String(raw?.status || '').toUpperCase() === 'DISPATCHED') {
+            // Driver-role staff: assigned but not yet accepted → ring it to accept.
             set({ active: null });
             dispatchStore.setIncoming(d);
           } else {

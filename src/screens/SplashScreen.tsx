@@ -42,7 +42,9 @@ export const SplashScreen: React.FC = () => {
           <LogoMark width={scale(96)} height={scale(96)} preserveAspectRatio="xMidYMid meet" />
         </View>
         <Logo width={scale(210)} height={scale(43)} preserveAspectRatio="xMidYMid meet" style={{ marginTop: verticalScale(24) }} />
-        <Text style={styles.tag}>Partner App</Text>
+        {/* Name the app on open — this build serves both drivers and ambulance
+            staff, so reflect the signed-in role (defaults to Driver). */}
+        <Text style={styles.tag}>{role === 'staff' ? 'Ambulance Staff' : 'Driver'}</Text>
       </Animated.View>
     </View>
   );

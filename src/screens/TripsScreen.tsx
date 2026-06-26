@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -6,6 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { ScreenHeader } from '../components';
 import { driverApi } from '../api/driver';
+import { dispatchStore, useActiveDispatch } from '../state/dispatchStore';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
 import { cardShadow } from '../theme/shadows';
 import type { RootStackParamList } from '../navigation/types';
@@ -18,6 +19,7 @@ interface Trip {
   km: number;
   fare: string;
   status: 'completed' | 'cancelled';
+  raw: any;
 }
 
 const mapTrip = (b: any): Trip => {
@@ -32,6 +34,30 @@ const mapTrip = (b: any): Trip => {
     km: b.distanceKm ?? b.km ?? 0,
     fare: `₹ ${b.finalFare ?? b.fare ?? b.amount ?? 0}`,
     status: st === 'CANCELLED' ? 'cancelled' : 'completed',
+    raw: b,
+  };
+};
+
+// Reshape a booking row into the fields TripDetailScreen reads (it's shared
+// with the SOS/dispatch flow), so the detail shows real data instead of dashes.
+const toDetail = (t: Trip): any => {
+  const b = t.raw || {};
+  const lat = b.pickup?.lat ?? b.pickupLat;
+  const lng = b.pickup?.lng ?? b.pickupLng;
+  return {
+    ...b,
+    _id: b._id || t.id,
+    ref: b.bookingNumber || t.id,
+    patientName: t.patient,
+    patientPhone: b.patientPhone || b.user?.phone || b.userId?.mobileNumber,
+    address: b.pickup?.address || b.drop?.address,
+    coords: lat != null && lng != null ? { lat, lng } : undefined,
+    vehicle: b.vehicleNumber || b.vehicle || b.ambulance?.registrationNumber,
+    distanceKm: t.km,
+    dispatchedAt: b.createdAt,
+    completedAt: b.completedAt,
+    cancelledAt: b.cancelledAt,
+    status: t.status === 'cancelled' ? 'CANCELLED' : 'COMPLETED',
   };
 };
 
@@ -44,14 +70,29 @@ export const TripsScreen: React.FC = () => {
   const [tab, setTab] = useState<Tab>('past');
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
+  // The in-progress ride (if any). bookingHistory only returns finished trips,
+  // so the active ride was never shown — pull it from the dispatch store.
+  const active = useActiveDispatch();
+  const autoSwitched = useRef(false);
 
   useEffect(() => {
+    // Refresh the active ride so it shows even if this screen is opened cold.
+    dispatchStore.hydrate('driver').catch(() => undefined);
     driverApi
       .bookingHistory()
       .then((list) => setTrips(list.map(mapTrip)))
       .catch(() => setTrips([]))
       .finally(() => setLoading(false));
   }, []);
+
+  // Land on the Active tab once when there's a live ride (respecting any later
+  // manual tab switch).
+  useEffect(() => {
+    if (active && !autoSwitched.current) {
+      autoSwitched.current = true;
+      setTab('active');
+    }
+  }, [active]);
 
   return (
     <View style={styles.root}>
@@ -65,14 +106,43 @@ export const TripsScreen: React.FC = () => {
       </View>
       <ScrollView contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + verticalScale(24) }]}>
         {tab === 'active' ? (
-          <Text style={styles.empty}>No active trip right now.</Text>
+          active ? (
+            <Pressable
+              onPress={() => navigation.navigate('ActiveDispatch' as never)}
+              style={({ pressed }) => [styles.card, cardShadow, pressed && { opacity: 0.85 }]}
+            >
+              <View style={styles.cardTop}>
+                <Text style={styles.patient}>{active.patient}</Text>
+                {!!active.fare && <Text style={styles.fare}>{active.fare}</Text>}
+              </View>
+              <Text style={styles.route}>
+                {[active.pickup, active.drop].filter(Boolean).join(' → ') || '—'}
+              </Text>
+              <View style={styles.metaRow}>
+                {active.km > 0 && <Text style={styles.meta}>{active.km} km</Text>}
+                {active.km > 0 && active.eta > 0 && <Text style={styles.dot}>·</Text>}
+                {active.eta > 0 && <Text style={styles.meta}>ETA {active.eta} min</Text>}
+                <View style={[styles.chip, { backgroundColor: '#EAF1FE' }]}>
+                  <Text style={[styles.chipText, { color: colors.directionsBlue }]}>
+                    {active.status.replace(/_/g, ' ')}
+                  </Text>
+                </View>
+              </View>
+            </Pressable>
+          ) : (
+            <Text style={styles.empty}>No active trip right now.</Text>
+          )
         ) : loading ? (
           <Text style={styles.empty}>Loading…</Text>
         ) : trips.length === 0 ? (
           <Text style={styles.empty}>No past trips.</Text>
         ) : (
           trips.map((t) => (
-            <View key={t.id} style={[styles.card, cardShadow]}>
+            <Pressable
+              key={t.id}
+              onPress={() => navigation.navigate('TripDetail', { trip: toDetail(t) })}
+              style={({ pressed }) => [styles.card, cardShadow, pressed && { opacity: 0.85 }]}
+            >
               <View style={styles.cardTop}>
                 <Text style={styles.patient}>{t.patient}</Text>
                 <Text style={styles.fare}>{t.fare}</Text>
@@ -88,7 +158,7 @@ export const TripsScreen: React.FC = () => {
                   </Text>
                 </View>
               </View>
-            </View>
+            </Pressable>
           ))
         )}
       </ScrollView>

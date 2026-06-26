@@ -63,9 +63,24 @@ const getPosition = (
   timeout: number,
 ): Promise<{ lat: number; lng: number } | null> =>
   new Promise((resolve) => {
+    let settled = false;
+    // Hard fallback: some Android builds ignore the native `timeout` option and
+    // leave a high-accuracy request hanging for MINUTES (no fix indoors, and no
+    // timeout error ever fires). Guarantee we give up so callers never block.
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      resolve(null);
+    }, timeout + 1500);
+    const finish = (v: { lat: number; lng: number } | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(v);
+    };
     Geolocation.getCurrentPosition(
-      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => resolve(null),
+      (pos) => finish({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => finish(null),
       { enableHighAccuracy: highAccuracy, timeout, maximumAge: 30000 },
     );
   });
