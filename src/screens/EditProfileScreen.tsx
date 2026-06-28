@@ -10,6 +10,7 @@ import { driverApi } from '../api/driver';
 import { staffApi } from '../api/staff';
 import { firstPhotoUrl } from '../api/upload';
 import { pickProfilePhoto, uploadProfilePhoto } from '../services/profilePhoto';
+import { isValidName, NAME_ERROR } from '../utils/validation';
 import { colors, fonts, scale, spacing, verticalScale } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -54,8 +55,8 @@ export const EditProfileScreen: React.FC = () => {
 
   const onSave = async () => {
     if (saving) return;
-    if (!f.fullName.trim()) {
-      setErr('Name is required.');
+    if (!isValidName(f.fullName)) {
+      setErr(NAME_ERROR);
       return;
     }
     setErr('');

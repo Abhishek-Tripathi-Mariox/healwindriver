@@ -6,6 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { ScreenHeader } from '../components';
 import { staffApi } from '../api/staff';
+import { onlyDigits, isValidName, NAME_ERROR, isValidMobile, MOBILE_ERROR } from '../utils/validation';
 import { colors, fonts, scale, spacing, verticalScale } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -25,12 +26,12 @@ export const AddPatientScreen: React.FC = () => {
     if (saving) return;
     // This registers a real hospital patient, so name, mobile and gender are
     // required (they're mandatory on the hospital patient record).
-    if (!f.name.trim()) {
-      setErr('Patient name is required.');
+    if (!isValidName(f.name)) {
+      setErr(NAME_ERROR);
       return;
     }
-    if (!/^[6-9]\d{9}$/.test(f.mobile.trim())) {
-      setErr('Enter a valid 10-digit mobile number.');
+    if (!isValidMobile(f.mobile)) {
+      setErr(MOBILE_ERROR);
       return;
     }
     if (!gender) {
@@ -60,7 +61,7 @@ export const AddPatientScreen: React.FC = () => {
       <ScreenHeader title="Add Patient" onBack={() => navigation.goBack()} />
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + verticalScale(30) }]}>
         <Input label="Patient Name" value={f.name} onChangeText={set('name')} />
-        <Input label="Mobile number" value={f.mobile} onChangeText={set('mobile')} keyboardType="number-pad" maxLength={10} />
+        <Input label="Mobile number" value={f.mobile} onChangeText={(v) => set('mobile')(onlyDigits(v))} keyboardType="number-pad" maxLength={10} />
         <Input label="D.O.B" value={f.dob} onChangeText={set('dob')} placeholder="DD MMM YYYY" />
         <Text style={styles.label}>Gender</Text>
         <View style={styles.chips}>
@@ -70,7 +71,7 @@ export const AddPatientScreen: React.FC = () => {
             </Pressable>
           ))}
         </View>
-        <Input label="Pin Code" value={f.pincode} onChangeText={set('pincode')} keyboardType="number-pad" maxLength={6} />
+        <Input label="Pin Code" value={f.pincode} onChangeText={(v) => set('pincode')(onlyDigits(v, 6))} keyboardType="number-pad" maxLength={6} />
         {!!err && <Text style={styles.err}>{err}</Text>}
         <Pressable disabled={saving} onPress={onSave} style={({ pressed }) => [styles.cta, (pressed || saving) && styles.pressed]}>
           <Text style={styles.ctaText}>{saving ? 'Saving…' : 'Save Patient'}</Text>

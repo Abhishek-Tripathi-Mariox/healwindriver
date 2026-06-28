@@ -8,6 +8,7 @@ import { svgs } from '../svgAssets';
 import { colors, fonts, scale, spacing, verticalScale } from '../theme';
 import { floatingShadow } from '../theme/shadows';
 import { driverAuth, staffAuth } from '../api/auth';
+import { onlyDigits } from '../utils/validation';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Login'>;
@@ -67,7 +68,7 @@ export const LoginScreen: React.FC = () => {
           <Text style={styles.cc}>+91</Text>
           <TextInput
             value={phone}
-            onChangeText={setPhone}
+            onChangeText={(t) => setPhone(onlyDigits(t))}
             placeholder="10-digit mobile number"
             placeholderTextColor={colors.placeholder}
             keyboardType="number-pad"

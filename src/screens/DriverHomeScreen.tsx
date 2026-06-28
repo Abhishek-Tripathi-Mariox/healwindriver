@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -22,6 +22,7 @@ import { authStore, useAuth } from '../state/authStore';
 import { ensureAppPermissions } from '../services/permissions';
 import { locationService } from '../services/location';
 import { driverApi } from '../api/driver';
+import { staffApi } from '../api/staff';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
 import { cardShadow } from '../theme/shadows';
 import type { RootStackParamList } from '../navigation/types';
@@ -51,6 +52,30 @@ export const DriverHomeScreen: React.FC = () => {
   const driverName =
     profile?.driver?.fullName || profile?.fullName || profile?.name || 'Driver';
   const [unread, setUnread] = React.useState(0);
+  // Off-duty reason picker.
+  const [reasonOpen, setReasonOpen] = React.useState(false);
+  const [reasons, setReasons] = React.useState<{ _id: string; label: string }[]>([]);
+  const [loadingReasons, setLoadingReasons] = React.useState(false);
+
+  // Tapping the toggle: going ON is instant; going OFF asks for a reason first.
+  const onDutyPress = () => {
+    if (!onDuty) {
+      void dutyStore.set(true);
+      return;
+    }
+    setReasonOpen(true);
+    setLoadingReasons(true);
+    staffApi
+      .offDutyReasons()
+      .then((list: any[]) => setReasons(list.map((r) => ({ _id: r._id || r.id, label: r.label || r.name })).filter((r) => r._id)))
+      .catch(() => setReasons([]))
+      .finally(() => setLoadingReasons(false));
+  };
+  const goOffDuty = async (reasonId?: string) => {
+    setReasonOpen(false);
+    const ok = await dutyStore.set(false, true, reasonId);
+    if (!ok) Alert.alert('Could not go off duty', 'Please check your connection and try again.');
+  };
 
   useFocusEffect(
     React.useCallback(() => {
@@ -117,12 +142,35 @@ export const DriverHomeScreen: React.FC = () => {
             </Text>
           </View>
           <Pressable
-            onPress={() => dutyStore.toggle()}
+            onPress={onDutyPress}
             style={[styles.switch, onDuty ? styles.switchOn : styles.switchOff]}
           >
             <View style={[styles.knob, onDuty ? styles.knobOn : styles.knobOff]} />
           </Pressable>
         </View>
+
+        {/* Off-duty reason picker */}
+        <Modal visible={reasonOpen} transparent animationType="fade" onRequestClose={() => setReasonOpen(false)}>
+          <Pressable style={styles.sheetBackdrop} onPress={() => setReasonOpen(false)}>
+            <Pressable style={styles.sheet} onPress={() => undefined}>
+              <Text style={styles.sheetTitle}>Why are you going off duty?</Text>
+              {loadingReasons ? (
+                <ActivityIndicator color={colors.brandRed} style={{ marginVertical: verticalScale(16) }} />
+              ) : (
+                <>
+                  {reasons.map((r) => (
+                    <Pressable key={r._id} style={styles.reasonRow} onPress={() => goOffDuty(r._id)}>
+                      <Text style={styles.reasonText}>{r.label}</Text>
+                    </Pressable>
+                  ))}
+                  <Pressable style={styles.reasonRow} onPress={() => goOffDuty(undefined)}>
+                    <Text style={[styles.reasonText, { color: colors.inkMuted }]}>Skip / Other</Text>
+                  </Pressable>
+                </>
+              )}
+            </Pressable>
+          </Pressable>
+        </Modal>
 
         {/* Active dispatch OR waiting state */}
         {active ? (
@@ -167,6 +215,11 @@ export const DriverHomeScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: colors.surface, borderTopLeftRadius: scale(18), borderTopRightRadius: scale(18), padding: spacing.lg, paddingBottom: verticalScale(28) },
+  sheetTitle: { fontFamily: fonts.bold, fontSize: scale(16), color: colors.ink, marginBottom: verticalScale(10) },
+  reasonRow: { paddingVertical: verticalScale(14), borderBottomWidth: 1, borderBottomColor: colors.dashBorder },
+  reasonText: { fontFamily: fonts.medium, fontSize: scale(15), color: colors.textPrimary },
   root: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: spacing.md },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: verticalScale(6) },
