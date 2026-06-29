@@ -22,7 +22,7 @@ import {
 import { useDuty, dutyStore } from '../state/dutyStore';
 import { dispatchStore } from '../state/dispatchStore';
 import { ensureAppPermissions } from '../services/permissions';
-import { locationService } from '../services/location';
+import { locationService, getCurrentPositionOnce } from '../services/location';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
 import { cardShadow } from '../theme/shadows';
 import type { RootStackParamList } from '../navigation/types';
@@ -102,6 +102,26 @@ export const StaffHomeScreen: React.FC = () => {
     void ensureAppPermissions().then(() => locationService.sendOnce('staff'));
   }, []);
 
+  // Crew SOS — raises a live alert on the control-centre dashboard.
+  const raiseSos = () => {
+    Alert.alert('Send SOS?', 'This alerts the control centre with your live location.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Send SOS',
+        style: 'destructive',
+        onPress: async () => {
+          const pos = await getCurrentPositionOnce().catch(() => null);
+          try {
+            await staffApi.raiseSos(pos ? { lat: pos.lat, lng: pos.lng } : undefined);
+            Alert.alert('SOS sent', 'The control centre has been alerted.');
+          } catch (e: any) {
+            Alert.alert('Could not send SOS', e?.message || 'Please try again or call 112.');
+          }
+        },
+      },
+    ]);
+  };
+
   const onLogout = () => {
     Alert.alert('Log out', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
@@ -151,6 +171,9 @@ export const StaffHomeScreen: React.FC = () => {
             <Text style={styles.roleSub}>{roleLabel}</Text>
           </View>
           <View style={styles.headerActions}>
+            <Pressable style={[styles.sosBtn, cardShadow]} onPress={raiseSos} hitSlop={8} accessibilityLabel="Send SOS">
+              <Text style={styles.sosText}>SOS</Text>
+            </Pressable>
             <Pressable style={[styles.bell, cardShadow]} onPress={() => navigation.navigate('StaffNotifications')} hitSlop={8}>
               <BellIcon size={scale(22)} color={colors.textPrimary} />
               {unread > 0 && <View style={styles.bellDot} />}
@@ -280,6 +303,8 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.md },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: verticalScale(6) },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: scale(10) },
+  sosBtn: { height: scale(40), paddingHorizontal: scale(14), borderRadius: scale(20), backgroundColor: colors.brandRed, alignItems: 'center', justifyContent: 'center' },
+  sosText: { fontFamily: fonts.bold, fontSize: scale(14), color: colors.textWhite, letterSpacing: 1 },
   hello: { fontFamily: fonts.bold, fontSize: scale(20), color: colors.textBlack, marginTop: verticalScale(6) },
   roleSub: { fontFamily: fonts.medium, fontSize: scale(12), color: colors.directionsBlue, marginTop: verticalScale(2) },
   bell: { width: scale(46), height: scale(46), borderRadius: scale(23), backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },

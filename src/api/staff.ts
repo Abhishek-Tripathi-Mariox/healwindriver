@@ -35,6 +35,9 @@ export const staffApi = {
   activeRequest: () => api.get('/ambulance-staff/requests/active'),
   requestAccept: (id: string) => api.post(`/ambulance-staff/requests/${id}/accept`, {}),
   requestReject: (id: string) => api.post(`/ambulance-staff/requests/${id}/reject`, {}),
+  // Crew raises their own emergency (accident/threat/breakdown) → control centre.
+  raiseSos: (loc?: { lat?: number; lng?: number; address?: string }) =>
+    api.post('/ambulance-staff/sos', loc || {}),
   requestEnRoute: (id: string) => api.post(`/ambulance-staff/requests/${id}/en-route`, {}),
   requestArrived: (id: string) => api.post(`/ambulance-staff/requests/${id}/arrived`, {}),
   requestStart: (id: string, otp?: string) => api.post(`/ambulance-staff/requests/${id}/start`, { otp }),

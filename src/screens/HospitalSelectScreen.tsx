@@ -36,7 +36,11 @@ export const HospitalSelectScreen: React.FC = () => {
         return;
       }
       try {
-        const c = await centresApi.nearby(pos.lat, pos.lng);
+        // Best-hospital suggestion ranks nearby + (when known) case-type match,
+        // flagging the top one as recommended. Falls back to plain nearby.
+        const c = await centresApi
+          .suggest(pos.lat, pos.lng)
+          .catch(() => centresApi.nearby(pos.lat, pos.lng));
         if (alive) setList(c);
       } catch {
         if (alive) setList([]);
@@ -55,8 +59,8 @@ export const HospitalSelectScreen: React.FC = () => {
     const coords = c.location?.coordinates;
     const dest = {
       address: c.name + (c.address ? `, ${c.address}` : ''),
-      lat: coords?.[1],
-      lng: coords?.[0],
+      lat: c.lat ?? coords?.[1],
+      lng: c.lng ?? coords?.[0],
     };
     try {
       if (active.kind === 'request') await staffApi.requestDestination(active.id, dest);
@@ -84,7 +88,10 @@ export const HospitalSelectScreen: React.FC = () => {
               <Pressable key={c._id} disabled={!!saving} onPress={() => choose(c)} style={[styles.card, cardShadow, saving === c._id && styles.pressed]}>
                 <View style={styles.icon}><MapPinIcon size={scale(20)} color={colors.directionsBlue} /></View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.name}>{c.name}</Text>
+                  <View style={styles.nameRow}>
+                    <Text style={styles.name}>{c.name}</Text>
+                    {c.recommended && <View style={styles.recoBadge}><Text style={styles.recoText}>Recommended</Text></View>}
+                  </View>
                   {!!c.address && <Text style={styles.addr} numberOfLines={2}>{c.address}</Text>}
                 </View>
                 {c.distanceKm != null && <Text style={styles.km}>{c.distanceKm} km</Text>}
@@ -104,6 +111,9 @@ const styles = StyleSheet.create({
   card: { flexDirection: 'row', alignItems: 'center', gap: scale(12), backgroundColor: colors.surface, borderRadius: radius.card, padding: scale(14) },
   icon: { width: scale(40), height: scale(40), borderRadius: scale(12), backgroundColor: '#EAF1FE', alignItems: 'center', justifyContent: 'center' },
   name: { fontFamily: fonts.semiBold, fontSize: scale(14), color: colors.textBlack },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: scale(8), flexWrap: 'wrap' },
+  recoBadge: { backgroundColor: '#E6F4E6', borderRadius: scale(8), paddingHorizontal: scale(8), paddingVertical: scale(2) },
+  recoText: { fontFamily: fonts.bold, fontSize: scale(10), color: colors.callGreen },
   addr: { fontFamily: fonts.regular, fontSize: scale(12), color: colors.inkMuted, marginTop: verticalScale(3) },
   km: { fontFamily: fonts.semiBold, fontSize: scale(12), color: colors.directionsBlue },
   pressed: { opacity: 0.7 },

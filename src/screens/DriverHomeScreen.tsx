@@ -20,7 +20,7 @@ import { useDuty, dutyStore } from '../state/dutyStore';
 import { useActiveDispatch, dispatchStore } from '../state/dispatchStore';
 import { authStore, useAuth } from '../state/authStore';
 import { ensureAppPermissions } from '../services/permissions';
-import { locationService } from '../services/location';
+import { locationService, getCurrentPositionOnce } from '../services/location';
 import { driverApi } from '../api/driver';
 import { staffApi } from '../api/staff';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
@@ -77,6 +77,26 @@ export const DriverHomeScreen: React.FC = () => {
     if (!ok) Alert.alert('Could not go off duty', 'Please check your connection and try again.');
   };
 
+  // Crew SOS — raises a live alert on the control-centre dashboard.
+  const raiseSos = () => {
+    Alert.alert('Send SOS?', 'This alerts the control centre with your live location.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Send SOS',
+        style: 'destructive',
+        onPress: async () => {
+          const pos = await getCurrentPositionOnce().catch(() => null);
+          try {
+            await staffApi.raiseSos(pos ? { lat: pos.lat, lng: pos.lng } : undefined);
+            Alert.alert('SOS sent', 'The control centre has been alerted.');
+          } catch (e: any) {
+            Alert.alert('Could not send SOS', e?.message || 'Please try again or call 112.');
+          }
+        },
+      },
+    ]);
+  };
+
   useFocusEffect(
     React.useCallback(() => {
       void dispatchStore.hydrate(role);
@@ -121,6 +141,9 @@ export const DriverHomeScreen: React.FC = () => {
             <Text style={styles.hello}>Hi, {driverName}</Text>
           </View>
           <View style={styles.headerActions}>
+            <Pressable style={[styles.sosBtn, cardShadow]} onPress={raiseSos} hitSlop={8} accessibilityLabel="Send SOS">
+              <Text style={styles.sosText}>SOS</Text>
+            </Pressable>
             <Pressable style={[styles.bell, cardShadow]} onPress={() => navigation.navigate('Notifications')} hitSlop={8}>
               <BellIcon size={scale(22)} color={colors.textPrimary} />
               {unread > 0 && <View style={styles.bellDot} />}
@@ -215,6 +238,8 @@ export const DriverHomeScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  sosBtn: { height: scale(40), paddingHorizontal: scale(14), borderRadius: scale(20), backgroundColor: colors.brandRed, alignItems: 'center', justifyContent: 'center' },
+  sosText: { fontFamily: fonts.bold, fontSize: scale(14), color: colors.textWhite, letterSpacing: 1 },
   sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheet: { backgroundColor: colors.surface, borderTopLeftRadius: scale(18), borderTopRightRadius: scale(18), padding: spacing.lg, paddingBottom: verticalScale(28) },
   sheetTitle: { fontFamily: fonts.bold, fontSize: scale(16), color: colors.ink, marginBottom: verticalScale(10) },
