@@ -204,6 +204,29 @@ export const ActiveDispatchScreen: React.FC = () => {
             <Text style={styles.hospitalBtnText}>Select nearby drop-off hospital</Text>
           </Pressable>
         </View>
+
+        {/* Field patient — the person the crew registered for THIS dispatch. */}
+        <View style={[styles.card, cardShadow]}>
+          <Text style={styles.sectionTitle}>Patient details</Text>
+          {d.hospitalPatient ? (
+            <>
+              <Row label="Name" value={d.hospitalPatient.name || '—'} />
+              {!!d.hospitalPatient.phone && <Row label="Phone" value={d.hospitalPatient.phone} />}
+              {!!d.hospitalPatient.gender && <Row label="Gender" value={d.hospitalPatient.gender} />}
+              {!!d.hospitalPatient.patientId && <Row label="Patient ID" value={d.hospitalPatient.patientId} />}
+              <Pressable style={styles.hospitalBtn} onPress={() => navigation.navigate('AddPatient')}>
+                <Text style={styles.hospitalBtnText}>Add another patient</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Text style={styles.meta}>No patient added for this dispatch yet.</Text>
+              <Pressable style={styles.hospitalBtn} onPress={() => navigation.navigate('AddPatient')}>
+                <Text style={styles.hospitalBtnText}>+ Add patient</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
       </ScrollView>
 
       <View style={[styles.bar, { paddingBottom: insets.bottom + verticalScale(10) }]}>
@@ -272,6 +295,7 @@ const styles = StyleSheet.create({
   line: { position: 'absolute', top: scale(13), left: '55%', right: '-45%', height: 2, backgroundColor: colors.inputBorder },
   lineDone: { backgroundColor: colors.payGreen },
   patient: { fontFamily: fonts.bold, fontSize: scale(18), color: colors.textBlack },
+  sectionTitle: { fontFamily: fonts.bold, fontSize: scale(15), color: colors.textBlack, marginBottom: verticalScale(8) },
   meta: { fontFamily: fonts.medium, fontSize: scale(13), color: colors.inkMuted, marginTop: verticalScale(4) },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#E2E2E2', marginVertical: verticalScale(14) },
   row: { flexDirection: 'row', marginBottom: verticalScale(10) },

@@ -84,7 +84,7 @@ export const staffApi = {
     return api.post('/ambulance-staff/leaves', data);
   },
   patients: () => api.get<any>('/ambulance-staff/patients').then((d) => (Array.isArray(d) ? d : d?.items ?? [])),
-  addPatient: (data: { name: string; mobile?: string; dob?: string; gender?: string; pincode?: string }) =>
+  addPatient: (data: { name: string; mobile?: string; dob?: string; gender?: string; pincode?: string; dispatchId?: string }) =>
     api.post('/ambulance-staff/patients', data),
   saveCaseNotes: (data: { dispatchId?: string; patientId?: string; vitals?: any; notes?: string }) =>
     api.post('/ambulance-staff/case-notes', data),

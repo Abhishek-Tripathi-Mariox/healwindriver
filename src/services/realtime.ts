@@ -18,7 +18,7 @@ import type { AppRole } from '../api/storage';
 
 let unsubs: Array<() => void> = [];
 
-const ringIncoming = (raw: any, role: AppRole) => {
+const ringIncoming = (raw: any, role: AppRole, infoOnly = false) => {
   // Off-duty crew are unavailable — never ring a new dispatch / SOS at them.
   // (Status updates for an already-active dispatch go through applyStatus, so
   // this only suppresses brand-new incoming alerts while off duty.)
@@ -28,6 +28,8 @@ const ringIncoming = (raw: any, role: AppRole) => {
   else if (raw?.kind === 'request') d = mapAmbulanceRequest(raw); // patient SOS / booking
   else d = mapEmergencyDispatch(raw); // SOS EmergencyDispatch
   if (!d || !d.id) return;
+  // Attendant variant (`dispatch:incoming_info`) is acknowledge-only.
+  if (infoOnly) d.infoOnly = true;
   // App-level effect watches `incoming` and presents the IncomingDispatch modal.
   dispatchStore.setIncoming(d);
 };
@@ -51,17 +53,20 @@ export const realtime = {
 
     if (role === 'staff') {
       unsubs.push(
-        socketService.on('dispatch:incoming', (d) => ringIncoming(d, 'staff')),
-        // Attendant gets the "patient inbound" variant — same ring, info modal.
-        socketService.on('dispatch:incoming_info', (d) => ringIncoming(d, 'staff')),
+        socketService.on('dispatch:incoming', (d) => ringIncoming(d, 'staff', false)),
+        // Attendant gets the "patient inbound" variant — acknowledge-only.
+        socketService.on('dispatch:incoming_info', (d) => ringIncoming(d, 'staff', true)),
         socketService.on('dispatch:status', (d) =>
           dispatchStore.applyStatus(String(d?.dispatchId || ''), d?.status),
         ),
-        socketService.on('dispatch:cancelled', () => {
-          dispatchStore.clearIncoming();
-          dispatchStore.clearActive();
-        }),
-        socketService.on('dispatch:resolved', () => dispatchStore.clearActive()),
+        // Clear only the dispatch that was actually cancelled (id-matched) so a
+        // stale cancel can't wipe a re-assigned dispatch.
+        socketService.on('dispatch:cancelled', (d) =>
+          dispatchStore.cancelById(String(d?.dispatchId || '')),
+        ),
+        socketService.on('dispatch:resolved', (d) =>
+          dispatchStore.cancelById(String(d?.dispatchId || '')),
+        ),
       );
     } else if (role === 'driver') {
       unsubs.push(

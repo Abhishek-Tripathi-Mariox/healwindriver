@@ -129,8 +129,11 @@ export const IncomingDispatchScreen: React.FC = () => {
 
         {isAttendant ? (
           <View style={styles.actions}>
-            <Pressable style={({ pressed }) => [styles.accept, pressed && styles.pressed]} onPress={dismiss}>
-              <Text style={styles.acceptText}>Acknowledge</Text>
+            {/* Acknowledge = ride along: moves to the live dispatch (info-only, no
+                backend transition) so the attendant follows the driver's status
+                instead of losing the dispatch after dismissing. */}
+            <Pressable disabled={busy} style={({ pressed }) => [styles.accept, (pressed || busy) && styles.pressed]} onPress={accept}>
+              <Text style={styles.acceptText}>{busy ? 'Acknowledging…' : 'Acknowledge'}</Text>
             </Pressable>
           </View>
         ) : (

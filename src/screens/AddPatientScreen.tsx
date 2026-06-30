@@ -6,6 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { ScreenHeader } from '../components';
 import { staffApi } from '../api/staff';
+import { dispatchStore } from '../state/dispatchStore';
 import { onlyDigits, isValidName, NAME_ERROR, isValidMobile, MOBILE_ERROR } from '../utils/validation';
 import { colors, fonts, scale, spacing, verticalScale } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
@@ -41,13 +42,19 @@ export const AddPatientScreen: React.FC = () => {
     setErr('');
     setSaving(true);
     try {
+      // If the crew is on an active dispatch, link this patient to that SOS
+      // journey so the dispatch (and admin) show who was treated.
+      const dispatchId = dispatchStore.getSnapshot().active?.id;
       await staffApi.addPatient({
         name: f.name.trim(),
         mobile: f.mobile.trim(),
         dob: f.dob.trim() || undefined,
         gender: gender ?? undefined,
         pincode: f.pincode.trim() || undefined,
+        dispatchId,
       });
+      // Refresh the active dispatch so the just-linked patient shows up.
+      if (dispatchId) await dispatchStore.hydrate('staff').catch(() => undefined);
       navigation.goBack();
     } catch (e: any) {
       setErr(e?.message || 'Could not save patient.');

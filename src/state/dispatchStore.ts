@@ -30,6 +30,19 @@ export interface Dispatch {
   // distance from the crew's own GPS instead of the static dispatch-time value.
   patientLat?: number;
   patientLng?: number;
+  // True when THIS crew member is the attendant (received `dispatch:incoming_info`)
+  // — they only acknowledge/ride along; the DRIVER owns the dispatch lifecycle.
+  // So an attendant's accept/dismiss must NEVER hit the driver-only backend
+  // endpoints (which would 403, or worse, cancel the dispatch for the driver).
+  infoOnly?: boolean;
+  // The patient the crew registered in the field for this dispatch (if any).
+  hospitalPatient?: {
+    _id?: string;
+    patientId?: string;
+    name?: string;
+    phone?: string;
+    gender?: string;
+  } | null;
 }
 
 interface DispatchState {
@@ -89,6 +102,7 @@ export const mapEmergencyDispatch = (raw: any): Dispatch | null => {
     status: normStatus(raw.status),
     patientLat: pLat,
     patientLng: pLng,
+    hospitalPatient: raw.hospitalPatient || null,
   };
 };
 
@@ -168,11 +182,15 @@ export const SIMULATED_ID = 'SIMULATED';
 const isSim = (d: Dispatch | null): boolean => !!d && d.id === SIMULATED_ID;
 
 const accApi = (d: Dispatch) => {
+  // Attendant only acknowledges locally — the driver accepts on the backend.
+  if (d.infoOnly) return Promise.resolve(undefined);
   if (d.kind === 'dispatch') return staffApi.acceptDispatch(d.id);
   if (d.kind === 'request') return staffApi.requestAccept(d.id);
   return driverApi.accept(d.id);
 };
 const rejApi = (d: Dispatch, reason?: string) => {
+  // Attendant dismiss is LOCAL ONLY — it must never cancel the driver's dispatch.
+  if (d.infoOnly) return Promise.resolve(undefined);
   if (d.kind === 'dispatch') return staffApi.rejectDispatch(d.id, reason);
   // AmbulanceRequest reject releases the ambulance + reverts to SEARCHING so
   // admin can re-dispatch (same semantics as SOS dispatch reject).
@@ -180,6 +198,8 @@ const rejApi = (d: Dispatch, reason?: string) => {
   return driverApi.reject(d.id, reason);
 };
 const transitionApi = (d: Dispatch, to: DispatchStatus, otp?: string) => {
+  // Attendant follows the driver's status over the socket — never transitions.
+  if (d.infoOnly) return Promise.resolve(undefined);
   if (d.kind === 'dispatch') {
     if (to === 'EN_ROUTE') return staffApi.enRoute(d.id);
     if (to === 'ON_SCENE') return staffApi.onScene(d.id);
@@ -211,6 +231,19 @@ export const dispatchStore = {
   },
   clearIncoming() {
     set({ incoming: null });
+  },
+
+  /**
+   * A dispatch was cancelled server-side. Clear ONLY the incoming/active that
+   * matches the cancelled id — so a stale cancellation for an OLD dispatch can't
+   * wipe a freshly RE-ASSIGNED one (which caused "Could not accept"). If no id is
+   * given, fall back to clearing everything (legacy callers).
+   */
+  cancelById(id?: string) {
+    const patch: Partial<DispatchState> = {};
+    if (!id || state.incoming?.id === id) patch.incoming = null;
+    if (!id || state.active?.id === id) patch.active = null;
+    if ('incoming' in patch || 'active' in patch) set(patch);
   },
 
   /** Accept the ringing dispatch → moves it to `active`. */
@@ -258,9 +291,18 @@ export const dispatchStore = {
 
   /** Apply a status update pushed from the server for the active dispatch. */
   applyStatus(id: string, status?: string) {
+    const next = normStatus(status);
+    // Attendant (info-only) ride-along: when the DRIVER accepts/advances, the
+    // server pushes the status — move the attendant's still-ringing dispatch
+    // into `active` and follow it, instead of leaving them stuck on the ring.
+    const inc = state.incoming;
+    if (inc && inc.id === id && inc.infoOnly) {
+      if (next === 'COMPLETED') set({ incoming: null });
+      else set({ incoming: null, active: { ...inc, status: next } });
+      return;
+    }
     const d = state.active;
     if (!d || d.id !== id) return;
-    const next = normStatus(status);
     if (next === 'COMPLETED') set({ active: null });
     else set({ active: { ...d, status: next } });
   },
