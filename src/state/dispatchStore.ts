@@ -302,9 +302,20 @@ export const dispatchStore = {
       return;
     }
     const d = state.active;
-    if (!d || d.id !== id) return;
-    if (next === 'COMPLETED') set({ active: null });
-    else set({ active: { ...d, status: next } });
+    if (d && d.id === id) {
+      if (next === 'COMPLETED') set({ active: null });
+      else set({ active: { ...d, status: next } });
+      return;
+    }
+    // Nothing matched: e.g. the attendant dismissed the "Patient Inbound" info
+    // (so their case stayed closed) and the DRIVER has now accepted/progressed.
+    // Pull the now-active dispatch so the attendant's case opens exactly when
+    // the driver accepts — never before.
+    if (next !== 'COMPLETED' && !state.active && !state.incoming) {
+      const isAttendant =
+        authStore.getSnapshot().profile?.staff?.role === 'attendant';
+      if (isAttendant) void dispatchStore.hydrate('staff');
+    }
   },
 
   clearActive() {
@@ -324,14 +335,18 @@ export const dispatchStore = {
         const raw = res?.dispatch ?? res;
         const d = mapEmergencyDispatch(raw);
         if (d && d.id) {
-          // An attendant is only INFORMED of an inbound patient — they never
-          // accept/reject (that's the driver's job), so the server keeps the
-          // dispatch at DISPATCHED. Re-ringing it on every home focus would pop
-          // the "Patient Inbound" alert forever after they acknowledge once, so
-          // for an attendant we just surface it as the current assignment.
           const isAttendant =
             authStore.getSnapshot().profile?.staff?.role === 'attendant';
-          if (!isAttendant && String(raw?.status || '').toUpperCase() === 'DISPATCHED') {
+          const status = String(raw?.status || '').toUpperCase();
+          if (isAttendant) {
+            // The attendant's case must NOT open until the DRIVER accepts. While
+            // the dispatch is still DISPATCHED (driver hasn't accepted), keep
+            // nothing active — otherwise a relaunch/home-focus would auto-open
+            // the case with no driver acceptance. Once the driver accepts
+            // (ACKNOWLEDGED / EN_ROUTE / ON_SCENE) we surface it as the current
+            // ride-along assignment.
+            set({ active: status === 'DISPATCHED' ? null : d });
+          } else if (status === 'DISPATCHED') {
             // Driver-role staff: assigned but not yet accepted → ring it to accept.
             set({ active: null });
             dispatchStore.setIncoming(d);

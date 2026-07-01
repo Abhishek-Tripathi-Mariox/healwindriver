@@ -95,15 +95,31 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            // Real release signing — credentials live in gradle.properties
+            // (HEALWIN_UPLOAD_*). A debug-signed release is what makes Play
+            // Protect flag the APK as "harmful", so release builds MUST use this.
+            if (project.hasProperty('HEALWIN_UPLOAD_STORE_FILE')) {
+                storeFile file(HEALWIN_UPLOAD_STORE_FILE)
+                storePassword HEALWIN_UPLOAD_STORE_PASSWORD
+                keyAlias HEALWIN_UPLOAD_KEY_ALIAS
+                keyPassword HEALWIN_UPLOAD_KEY_PASSWORD
+            }
+        }
     }
     buildTypes {
         debug {
-            signingConfig signingConfigs.debug
+            // Sign the USB/dev (debug) build with the SAME release key so it and
+            // the distributed release APK share one signature — otherwise
+            // switching between `run-android` and the release APK hits
+            // "package conflicts with an existing package".
+            signingConfig project.hasProperty('HEALWIN_UPLOAD_STORE_FILE') ? signingConfigs.release : signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // Use the real release key when its credentials are present,
+            // otherwise fall back to debug so a plain build still works on a
+            // machine without the keystore configured.
+            signingConfig project.hasProperty('HEALWIN_UPLOAD_STORE_FILE') ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }

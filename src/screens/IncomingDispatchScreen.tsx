@@ -36,13 +36,15 @@ export const IncomingDispatchScreen: React.FC = () => {
   }, [navigation]);
 
   // Driver dismiss = reject the dispatch on the server; attendant dismiss is
-  // local-only (they were just informed, there's nothing to reject).
-  const dismiss = React.useCallback(() => {
+  // local-only (they were just informed, there's nothing to reject). The reason
+  // distinguishes an explicit tap ("driver_rejected") from a timeout with no
+  // response ("no_response") so the admin shows "Not answered" vs "Rejected".
+  const dismiss = React.useCallback((reason: string = 'driver_rejected') => {
     if (leaving.current) return;
     leaving.current = true;
     if (timer.current) clearInterval(timer.current);
     if (isAttendant) dispatchStore.clearIncoming();
-    else void dispatchStore.rejectIncoming();
+    else void dispatchStore.rejectIncoming(reason);
     leave();
   }, [leave, isAttendant]);
 
@@ -51,7 +53,7 @@ export const IncomingDispatchScreen: React.FC = () => {
       setSeconds((s) => {
         if (s <= 1) {
           if (timer.current) clearInterval(timer.current);
-          dismiss(); // auto-dismiss on timeout
+          dismiss('no_response'); // auto-dismiss on timeout = nobody answered
           return 0;
         }
         return s - 1;
@@ -138,7 +140,7 @@ export const IncomingDispatchScreen: React.FC = () => {
           </View>
         ) : (
           <View style={styles.actions}>
-            <Pressable disabled={busy} style={({ pressed }) => [styles.reject, pressed && styles.pressed]} onPress={dismiss}>
+            <Pressable disabled={busy} style={({ pressed }) => [styles.reject, pressed && styles.pressed]} onPress={() => dismiss('driver_rejected')}>
               <Text style={styles.rejectText}>Reject</Text>
             </Pressable>
             <Pressable disabled={busy} style={({ pressed }) => [styles.accept, (pressed || busy) && styles.pressed]} onPress={accept}>
