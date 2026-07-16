@@ -42,7 +42,22 @@ export const ensurePermission = async (): Promise<boolean> => {
     const res = await PermissionsAndroid.request(
       PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
     );
-    return res === PermissionsAndroid.RESULTS.GRANTED;
+    const fineOk = res === PermissionsAndroid.RESULTS.GRANTED;
+    // On Android 10+ (API 29+) "Allow all the time" is a SEPARATE background
+    // permission — request it after foreground is granted so the crew's live
+    // location keeps streaming during a dispatch even when the app is
+    // backgrounded / screen off. (Android 11+ opens a system Settings screen;
+    // declining still leaves foreground streaming working.)
+    if (fineOk && Number(Platform.Version) >= 29) {
+      try {
+        await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION,
+        );
+      } catch {
+        /* background is best-effort */
+      }
+    }
+    return fineOk;
   } catch {
     return false;
   }

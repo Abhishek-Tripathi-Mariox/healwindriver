@@ -12,7 +12,8 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import { navigationRef, navigate } from './src/navigation/navigationRef';
 import { authStore } from './src/state/authStore';
 import { useIncomingDispatch } from './src/state/dispatchStore';
-import { setPushNavigator } from './src/services/push';
+import { setPushNavigator, subscribeForeground } from './src/services/push';
+import { InAppBanner, BannerData } from './src/components/InAppBanner';
 import { NAV_STATE_KEY } from './src/api/storage';
 import { colors } from './src/theme';
 
@@ -21,10 +22,18 @@ function App(): React.JSX.Element {
   // Restore the navigation stack so reopening returns to the same screen.
   const [navReady, setNavReady] = useState(false);
   const [initialState, setInitialState] = useState<any>(undefined);
+  const [banner, setBanner] = useState<BannerData | null>(null);
 
   useEffect(() => {
     void authStore.bootstrap();
     setPushNavigator((route, params) => navigate(route as never, params as never));
+    // Foreground push → branded in-app banner (not a plain OS Alert). A ringing
+    // dispatch has its own full-screen modal, so don't also banner those.
+    const unsub = subscribeForeground((title, body, data) => {
+      if ((title || body) && data?.action !== 'incoming_dispatch') {
+        setBanner({ title, body, data });
+      }
+    });
     (async () => {
       try {
         const saved = await AsyncStorage.getItem(NAV_STATE_KEY);
@@ -35,6 +44,7 @@ function App(): React.JSX.Element {
         setNavReady(true);
       }
     })();
+    return unsub;
   }, []);
 
   // Surface a ringing dispatch as the IncomingDispatch modal, wherever we are.
@@ -58,6 +68,15 @@ function App(): React.JSX.Element {
       >
         <RootNavigator />
       </NavigationContainer>
+      <InAppBanner
+        notif={banner}
+        onDismiss={() => setBanner(null)}
+        onPress={(data) => {
+          setBanner(null);
+          const route = (data?.screen || data?.route) as string | undefined;
+          if (route) navigate(route as never, data as never);
+        }}
+      />
     </SafeAreaProvider>
   );
 }

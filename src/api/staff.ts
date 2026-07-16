@@ -88,6 +88,19 @@ export const staffApi = {
     api.post('/ambulance-staff/patients', data),
   saveCaseNotes: (data: { dispatchId?: string; patientId?: string; vitals?: any; notes?: string }) =>
     api.post('/ambulance-staff/case-notes', data),
-  stockRequest: (items: { name: string; qty: number }[]) =>
+  stockRequest: (items: { itemId?: string; name: string; qty: number }[]) =>
     api.post('/ambulance-staff/stock-requests', { items }),
+  // Ambulance inventory: catalog to pick from, this crew's on-hand stock, and
+  // logging items consumed on a patient during a dispatch.
+  inventoryCatalog: (q?: string) =>
+    api
+      .get<any>(`/ambulance-staff/inventory-items${q ? `?q=${encodeURIComponent(q)}` : ''}`)
+      .then((d) => (Array.isArray(d) ? d : d?.items ?? [])),
+  myStock: () => api.get<any>('/ambulance-staff/stock'),
+  consumeStock: (data: {
+    dispatchId?: string;
+    requestId?: string;
+    patientId?: string;
+    items: { itemId: string; qty: number }[];
+  }) => api.post('/ambulance-staff/stock/consume', data),
 };

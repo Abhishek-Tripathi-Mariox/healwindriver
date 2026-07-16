@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { ScreenHeader } from '../components';
@@ -11,31 +11,56 @@ import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
 import { cardShadow } from '../theme/shadows';
 import type { RootStackParamList } from '../navigation/types';
 
-const ITEMS = ['Oxygen Cylinder', 'Disposable Gloves (box)', 'Bandages', 'Normal Saline (500ml)', 'Syringes (10ml)', 'IV Cannula'];
+type CatalogItem = { _id: string; name: string; unit?: string; sellingPrice?: number; centralStock?: number };
+type StockItem = { itemId: string; name: string; unit?: string; quantity: number };
 type Nav = NativeStackNavigationProp<RootStackParamList, 'StockRequest'>;
 
 export const StockRequestScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
-  const [qty, setQty] = useState<Record<string, number>>({});
+  const [catalog, setCatalog] = useState<CatalogItem[]>([]);
+  const [onHand, setOnHand] = useState<StockItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [qty, setQty] = useState<Record<string, number>>({}); // keyed by itemId
   const [sent, setSent] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const set = (k: string, delta: number) => setQty((s) => ({ ...s, [k]: Math.max(0, (s[k] ?? 0) + delta) }));
+  useEffect(() => {
+    let alive = true;
+    staffApi
+      .inventoryCatalog()
+      .then((items) => alive && setCatalog(items))
+      .catch(() => alive && setCatalog([]))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Refresh the crew's on-hand stock whenever the screen focuses.
+  useFocusEffect(
+    React.useCallback(() => {
+      staffApi
+        .myStock()
+        .then((res: any) => setOnHand(res?.items || res?.data?.items || []))
+        .catch(() => setOnHand([]));
+    }, []),
+  );
+
+  const set = (id: string, delta: number) => setQty((s) => ({ ...s, [id]: Math.max(0, (s[id] ?? 0) + delta) }));
   const totalItems = Object.values(qty).reduce((n, q) => n + q, 0);
 
   const submit = async () => {
     if (totalItems === 0 || saving) return;
-    const items = Object.entries(qty)
-      .filter(([, q]) => q > 0)
-      .map(([name, q]) => ({ name, qty: q }));
+    const items = catalog
+      .filter((c) => (qty[c._id] ?? 0) > 0)
+      .map((c) => ({ itemId: c._id, name: c.name, qty: qty[c._id] }));
     setSaving(true);
     try {
       await staffApi.stockRequest(items);
       setSent(true);
       setQty({});
     } catch (e: any) {
-      // Surface real failures instead of faking success.
       Alert.alert('Request failed', e?.message || 'Could not submit your stock request. Please try again.');
     } finally {
       setSaving(false);
@@ -51,20 +76,46 @@ export const StockRequestScreen: React.FC = () => {
             <Text style={styles.bannerText}>Request submitted — control room will restock your unit.</Text>
           </View>
         )}
-        {ITEMS.map((item) => {
-          const q = qty[item] ?? 0;
-          return (
-            <View key={item} style={[styles.row, cardShadow]}>
-              <View style={styles.icon}><BoxIcon size={scale(20)} color={colors.directionsBlue} /></View>
-              <Text style={styles.name}>{item}</Text>
-              <View style={styles.stepper}>
-                <Pressable onPress={() => set(item, -1)} hitSlop={6} style={styles.step}><MinusIcon size={scale(16)} color={colors.textWhite} /></Pressable>
-                <Text style={styles.qty}>{q}</Text>
-                <Pressable onPress={() => set(item, 1)} hitSlop={6} style={styles.step}><PlusIcon size={scale(16)} color={colors.textWhite} /></Pressable>
+
+        {/* Current stock on this ambulance */}
+        <Text style={styles.section}>On your ambulance</Text>
+        {onHand.length === 0 ? (
+          <Text style={styles.empty}>No stock loaded yet.</Text>
+        ) : (
+          <View style={[styles.stockCard, cardShadow]}>
+            {onHand.map((s) => (
+              <View key={s.itemId} style={styles.stockRow}>
+                <Text style={styles.stockName}>{s.name}</Text>
+                <Text style={styles.stockQty}>{s.quantity}{s.unit ? ` ${s.unit}` : ''}</Text>
               </View>
-            </View>
-          );
-        })}
+            ))}
+          </View>
+        )}
+
+        <Text style={styles.section}>Request more</Text>
+        {loading ? (
+          <ActivityIndicator color={colors.directionsBlue} style={{ marginTop: verticalScale(16) }} />
+        ) : catalog.length === 0 ? (
+          <Text style={styles.empty}>No inventory items available.</Text>
+        ) : (
+          catalog.map((item) => {
+            const q = qty[item._id] ?? 0;
+            return (
+              <View key={item._id} style={[styles.row, cardShadow]}>
+                <View style={styles.icon}><BoxIcon size={scale(20)} color={colors.directionsBlue} /></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.name}>{item.name}</Text>
+                  {!!item.unit && <Text style={styles.unit}>per {item.unit}</Text>}
+                </View>
+                <View style={styles.stepper}>
+                  <Pressable onPress={() => set(item._id, -1)} hitSlop={6} style={styles.step}><MinusIcon size={scale(16)} color={colors.textWhite} /></Pressable>
+                  <Text style={styles.qty}>{q}</Text>
+                  <Pressable onPress={() => set(item._id, 1)} hitSlop={6} style={styles.step}><PlusIcon size={scale(16)} color={colors.textWhite} /></Pressable>
+                </View>
+              </View>
+            );
+          })
+        )}
       </ScrollView>
 
       <View style={[styles.bar, { paddingBottom: insets.bottom + verticalScale(10) }]}>
@@ -88,7 +139,14 @@ const styles = StyleSheet.create({
   bannerText: { fontFamily: fonts.medium, fontSize: scale(13), color: '#2E7D32' },
   row: { flexDirection: 'row', alignItems: 'center', gap: scale(12), backgroundColor: colors.surface, borderRadius: radius.card, padding: scale(14) },
   icon: { width: scale(40), height: scale(40), borderRadius: scale(12), backgroundColor: '#EAF1FE', alignItems: 'center', justifyContent: 'center' },
-  name: { flex: 1, fontFamily: fonts.semiBold, fontSize: scale(13), color: colors.textBlack },
+  name: { fontFamily: fonts.semiBold, fontSize: scale(13), color: colors.textBlack },
+  unit: { fontFamily: fonts.regular, fontSize: scale(11), color: colors.inkMuted, marginTop: verticalScale(2) },
+  section: { fontFamily: fonts.bold, fontSize: scale(14), color: colors.textBlack, marginTop: verticalScale(6) },
+  empty: { fontFamily: fonts.medium, fontSize: scale(12.5), color: colors.inkMuted },
+  stockCard: { backgroundColor: colors.surface, borderRadius: radius.card, padding: scale(14), gap: verticalScale(8) },
+  stockRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  stockName: { flex: 1, fontFamily: fonts.medium, fontSize: scale(13), color: colors.textBlack },
+  stockQty: { fontFamily: fonts.bold, fontSize: scale(13), color: colors.payGreen },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: scale(10), backgroundColor: colors.directionsBlue, borderRadius: scale(8), paddingHorizontal: scale(8), height: verticalScale(32) },
   step: { width: scale(20), alignItems: 'center', justifyContent: 'center' },
   qty: { fontFamily: fonts.bold, fontSize: scale(13), color: colors.textWhite, minWidth: scale(16), textAlign: 'center' },
