@@ -6,6 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { ScreenHeader } from '../components';
 import { NotesIcon } from '../components/icons';
+import { resolveNotifRoute } from '../utils/notifRoute';
 import { staffApi } from '../api/staff';
 import { socketService } from '../services/socket';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
@@ -13,12 +14,7 @@ import { cardShadow } from '../theme/shadows';
 import type { RootStackParamList } from '../navigation/types';
 
 // Screens a notification may deep-link to on tap (guards against bad data).
-const NAV_TARGETS = new Set(['TicketDetail', 'Tickets']);
-
-const linkOf = (data?: Record<string, any>): { target?: string; params?: any } => {
-  const t = (data?.route || data?.screen) as string | undefined;
-  return t && NAV_TARGETS.has(t) ? { target: t, params: data } : {};
-};
+const linkOf = (data?: Record<string, any>) => resolveNotifRoute(data);
 
 interface Notif {
   id: string;

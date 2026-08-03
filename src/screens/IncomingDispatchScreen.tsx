@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -92,7 +93,7 @@ export const IncomingDispatchScreen: React.FC = () => {
       // doesn't immediately re-present, and return home.
       leaving.current = false;
       dispatchStore.clearIncoming();
-      Alert.alert(
+      AppAlert.alert(
         'Could not accept',
         'This dispatch could not be accepted — it may have been cancelled or reassigned. Please try again.',
       );

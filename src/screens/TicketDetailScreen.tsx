@@ -1,13 +1,16 @@
 import React from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { ScreenHeader } from '../components';
+import { CheckCircleIcon } from '../components/icons';
 import { supportApi } from '../api/support';
 import { socketService } from '../services/socket';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
+import { cardShadow } from '../theme/shadows';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'TicketDetail'>;
@@ -27,6 +30,8 @@ export const TicketDetailScreen: React.FC = () => {
   const [text, setText] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const [reopening, setReopening] = React.useState(false);
+  const [closeConfirmOpen, setCloseConfirmOpen] = React.useState(false);
+  const [closing, setClosing] = React.useState(false);
 
   const load = React.useCallback(() => {
     supportApi
@@ -62,28 +67,25 @@ export const TicketDetailScreen: React.FC = () => {
       setReopening(false);
       load();
     } catch (e: any) {
-      Alert.alert('Could not send', e?.message || 'Please try again.');
+      AppAlert.alert('Could not send', e?.message || 'Please try again.');
     } finally {
       setBusy(false);
     }
   };
 
-  const close = () => {
-    Alert.alert('Close ticket?', 'Mark this ticket as resolved?', [
-      { text: 'No', style: 'cancel' },
-      {
-        text: 'Close',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await supportApi.closeTicket(params.id);
-            load();
-          } catch {
-            Alert.alert('Could not close', 'Please try again.');
-          }
-        },
-      },
-    ]);
+  const confirmClose = async () => {
+    if (closing) return;
+    setClosing(true);
+    try {
+      await supportApi.closeTicket(params.id);
+      setCloseConfirmOpen(false);
+      load();
+    } catch {
+      setCloseConfirmOpen(false);
+      AppAlert.alert('Could not close', 'Please try again.');
+    } finally {
+      setClosing(false);
+    }
   };
 
   if (loading) {
@@ -158,12 +160,46 @@ export const TicketDetailScreen: React.FC = () => {
             <Text style={styles.sendText}>{closed ? 'Reopen' : 'Send'}</Text>
           </Pressable>
           {!closed && (
-            <Pressable onPress={close} style={styles.closeBtn}>
+            <Pressable onPress={() => setCloseConfirmOpen(true)} style={styles.closeBtn}>
               <Text style={styles.closeBtnText}>Close</Text>
             </Pressable>
           )}
         </View>
       )}
+
+      <Modal
+        visible={closeConfirmOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCloseConfirmOpen(false)}
+      >
+        <Pressable style={styles.confirmBackdrop} onPress={() => setCloseConfirmOpen(false)}>
+          <Pressable style={[styles.confirmCard, cardShadow]} onPress={() => {}}>
+            <View style={styles.confirmIconWrap}>
+              <CheckCircleIcon size={scale(52)} color={colors.payGreen} />
+            </View>
+            <Text style={styles.confirmTitle}>Close this ticket?</Text>
+            <Text style={styles.confirmSub}>
+              We'll mark it as resolved. You can always reopen it later if you need more help.
+            </Text>
+            <View style={styles.confirmRow}>
+              <Pressable
+                style={({ pressed }) => [styles.confirmCancel, pressed && styles.pressed]}
+                onPress={() => setCloseConfirmOpen(false)}
+              >
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                disabled={closing}
+                style={({ pressed }) => [styles.confirmClose, (pressed || closing) && styles.pressed]}
+                onPress={confirmClose}
+              >
+                <Text style={styles.confirmCloseText}>{closing ? 'Closing…' : 'Close ticket'}</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -196,4 +232,15 @@ const styles = StyleSheet.create({
   closedText: { textAlign: 'center', fontFamily: fonts.medium, fontSize: scale(13), color: colors.inkMuted, textTransform: 'capitalize' },
   reopenBtn: { paddingHorizontal: scale(20), height: verticalScale(42), borderRadius: scale(21), borderWidth: 1, borderColor: colors.directionsBlue, alignItems: 'center', justifyContent: 'center' },
   reopenText: { fontFamily: fonts.bold, fontSize: scale(13), color: colors.directionsBlue },
+  pressed: { opacity: 0.85 },
+  confirmBackdrop: { flex: 1, backgroundColor: 'rgba(17,20,24,0.55)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl },
+  confirmCard: { width: '100%', maxWidth: scale(340), backgroundColor: colors.surface, borderRadius: scale(22), paddingHorizontal: scale(22), paddingTop: scale(26), paddingBottom: scale(20), alignItems: 'center' },
+  confirmIconWrap: { marginBottom: verticalScale(14) },
+  confirmTitle: { fontFamily: fonts.bold, fontSize: scale(18), color: colors.textBlack, textAlign: 'center' },
+  confirmSub: { fontFamily: fonts.regular, fontSize: scale(13), color: colors.inkMuted, textAlign: 'center', lineHeight: scale(19), marginTop: verticalScale(8), marginBottom: verticalScale(22) },
+  confirmRow: { flexDirection: 'row', gap: scale(10), width: '100%' },
+  confirmCancel: { flex: 1, height: verticalScale(48), borderRadius: scale(24), borderWidth: 1.5, borderColor: colors.inputBorder, alignItems: 'center', justifyContent: 'center' },
+  confirmCancelText: { fontFamily: fonts.semiBold, fontSize: scale(14.5), color: colors.inkMuted },
+  confirmClose: { flex: 1.3, height: verticalScale(48), borderRadius: scale(24), backgroundColor: colors.payGreen, alignItems: 'center', justifyContent: 'center' },
+  confirmCloseText: { fontFamily: fonts.bold, fontSize: scale(14.5), color: colors.textWhite },
 });

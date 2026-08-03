@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -74,7 +75,7 @@ export const StaffHomeScreen: React.FC = () => {
   const applyDuty = async (v: boolean, reasonId?: string) => {
     setDutyBusy(true);
     const ok = await dutyStore.set(v, true, reasonId);
-    if (!ok) Alert.alert('Could not update duty', 'Please check your connection and try again.');
+    if (!ok) AppAlert.alert('Could not update duty', 'Please check your connection and try again.');
     setDutyBusy(false);
   };
 
@@ -104,7 +105,7 @@ export const StaffHomeScreen: React.FC = () => {
 
   // Crew SOS — raises a live alert on the control-centre dashboard.
   const raiseSos = () => {
-    Alert.alert('Send SOS?', 'This alerts the control centre with your live location.', [
+    AppAlert.alert('Send SOS?', 'This alerts the control centre with your live location.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Send SOS',
@@ -113,9 +114,9 @@ export const StaffHomeScreen: React.FC = () => {
           const pos = await getCurrentPositionOnce().catch(() => null);
           try {
             await staffApi.raiseSos(pos ? { lat: pos.lat, lng: pos.lng } : undefined);
-            Alert.alert('SOS sent', 'The control centre has been alerted.');
+            AppAlert.alert('SOS sent', 'The control centre has been alerted.');
           } catch (e: any) {
-            Alert.alert('Could not send SOS', e?.message || 'Please try again or call 112.');
+            AppAlert.alert('Could not send SOS', e?.message || 'Please try again or call 112.');
           }
         },
       },
@@ -123,7 +124,7 @@ export const StaffHomeScreen: React.FC = () => {
   };
 
   const onLogout = () => {
-    Alert.alert('Log out', 'Are you sure you want to log out?', [
+    AppAlert.alert('Log out', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Log out',

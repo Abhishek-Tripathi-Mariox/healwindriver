@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -85,7 +86,7 @@ export const ProfileScreen: React.FC = () => {
       setPhotoBusy(true);
       await uploadProfilePhoto('driver', file);
     } catch (e: any) {
-      Alert.alert('Photo not updated', e?.message || 'Could not update your photo. Please try again.');
+      AppAlert.alert('Photo not updated', e?.message || 'Could not update your photo. Please try again.');
     } finally {
       setPhotoBusy(false);
     }

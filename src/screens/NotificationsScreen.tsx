@@ -8,19 +8,15 @@ import { ScreenHeader } from '../components';
 import { WarningIcon } from '../components/icons';
 import { driverApi } from '../api/driver';
 import { socketService } from '../services/socket';
+import { resolveNotifRoute } from '../utils/notifRoute';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
 import { cardShadow } from '../theme/shadows';
 import type { RootStackParamList } from '../navigation/types';
 
 // Screens a notification may deep-link to on tap (guards against bad data).
-const NAV_TARGETS = new Set(['TicketDetail', 'Tickets']);
-
 // Pick the deep-link target + params a notification carries (e.g. a support
 // reply → TicketDetail with the ticket id).
-const linkOf = (data?: Record<string, any>): { target?: string; params?: any } => {
-  const t = (data?.route || data?.screen) as string | undefined;
-  return t && NAV_TARGETS.has(t) ? { target: t, params: data } : {};
-};
+const linkOf = (data?: Record<string, any>) => resolveNotifRoute(data);
 
 interface Notif {
   id: string;

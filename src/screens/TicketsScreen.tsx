@@ -1,5 +1,6 @@
 import React from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -44,7 +45,7 @@ export const TicketsScreen: React.FC = () => {
 
   const submit = async () => {
     if (!form.subject.trim() || !form.message.trim()) {
-      Alert.alert('Missing details', 'Please enter a subject and describe your issue.');
+      AppAlert.alert('Missing details', 'Please enter a subject and describe your issue.');
       return;
     }
     setSaving(true);
@@ -54,7 +55,7 @@ export const TicketsScreen: React.FC = () => {
       setForm({ category: 'Shift', subject: '', message: '' });
       load();
     } catch (e: any) {
-      Alert.alert('Could not raise ticket', e?.message || 'Please try again.');
+      AppAlert.alert('Could not raise ticket', e?.message || 'Please try again.');
     } finally {
       setSaving(false);
     }

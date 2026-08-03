@@ -1,5 +1,5 @@
 import { api } from './client';
-import { photoFormData, type PhotoFile } from './upload';
+import { photoFormData, photosFormData, type PhotoFile } from './upload';
 
 /** Ambulance-staff endpoints (/ambulance-staff/*). */
 export const staffApi = {
@@ -44,6 +44,10 @@ export const staffApi = {
   requestComplete: (id: string) => api.post(`/ambulance-staff/requests/${id}/complete`, {}),
   requestDestination: (id: string, dest: { address?: string; lat?: number; lng?: number }) =>
     api.post(`/ambulance-staff/requests/${id}/destination`, dest),
+  // Photos/videos of the patient captured during transport. Backend expects
+  // the files under the repeated field name "media".
+  requestPatientMedia: (id: string, files: PhotoFile[]) =>
+    api.postForm(`/ambulance-staff/requests/${id}/patient-media`, photosFormData('media', files)),
 
   shifts: () =>
     api.get<any>('/ambulance-staff/shifts').then((d) =>

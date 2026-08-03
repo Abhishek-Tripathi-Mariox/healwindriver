@@ -1,8 +1,9 @@
-import { Platform, PermissionsAndroid } from 'react-native';
+import { Linking, Platform, PermissionsAndroid } from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
 import { driverApi } from '../api/driver';
 import { staffApi } from '../api/staff';
 import { socketService } from './socket';
+import { AppAlert } from './appAlert';
 import type { AppRole } from '../api/storage';
 
 /**
@@ -29,6 +30,10 @@ export const subscribePosition = (
 };
 export const getLastPosition = (): { lat: number; lng: number } | null => lastPos;
 
+// Only nag once per app session even though ensurePermission() runs on every
+// location fetch — otherwise this would pop on every single call.
+let backgroundPromptShown = false;
+
 export const ensurePermission = async (): Promise<boolean> => {
   if (Platform.OS !== 'android') {
     try {
@@ -46,8 +51,7 @@ export const ensurePermission = async (): Promise<boolean> => {
     // On Android 10+ (API 29+) "Allow all the time" is a SEPARATE background
     // permission — request it after foreground is granted so the crew's live
     // location keeps streaming during a dispatch even when the app is
-    // backgrounded / screen off. (Android 11+ opens a system Settings screen;
-    // declining still leaves foreground streaming working.)
+    // backgrounded / screen off.
     if (fineOk && Number(Platform.Version) >= 29) {
       try {
         await PermissionsAndroid.request(
@@ -55,6 +59,28 @@ export const ensurePermission = async (): Promise<boolean> => {
         );
       } catch {
         /* background is best-effort */
+      }
+      // Android 11+ (API 30+) never shows "Allow all the time" as an in-app
+      // dialog option — Google requires that specific grant to come from
+      // Settings, for every app, no exceptions. If it's still not granted
+      // after the attempt above, guide the crew straight to this app's
+      // Settings screen in one tap — critical here since live tracking during
+      // a dispatch depends on it once the screen locks/app backgrounds.
+      if (!backgroundPromptShown) {
+        const bgGranted = await PermissionsAndroid.check(
+          PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION,
+        ).catch(() => false);
+        if (!bgGranted) {
+          backgroundPromptShown = true;
+          AppAlert.alert(
+            'Keep live tracking working',
+            'Android requires "Allow all the time" for Location so your position keeps streaming during a dispatch even when the app is backgrounded or the screen locks. This can only be turned on from Settings — tap below to open it directly.',
+            [
+              { text: 'Not now', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => void Linking.openSettings().catch(() => undefined) },
+            ],
+          );
+        }
       }
     }
     return fineOk;

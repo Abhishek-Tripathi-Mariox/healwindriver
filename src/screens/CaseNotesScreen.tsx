@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -52,7 +53,7 @@ export const CaseNotesScreen: React.FC = () => {
   const save = async () => {
     if (saving) return;
     if (!onboard) {
-      Alert.alert('Patient not onboard yet', 'You can add case notes once the patient is picked up (trip started).');
+      AppAlert.alert('Patient not onboard yet', 'You can add case notes once the patient is picked up (trip started).');
       return;
     }
     // Require at least one vital, a note, OR a used supply so we don't save empty.
@@ -61,7 +62,7 @@ export const CaseNotesScreen: React.FC = () => {
       .filter(([, q]) => q > 0)
       .map(([itemId, q]) => ({ itemId, qty: q }));
     if (!hasVitals && !notes.trim() && usedItems.length === 0) {
-      Alert.alert('Nothing to save', 'Enter a vital, a note, or the supplies used.');
+      AppAlert.alert('Nothing to save', 'Enter a vital, a note, or the supplies used.');
       return;
     }
     setSaving(true);
@@ -78,11 +79,11 @@ export const CaseNotesScreen: React.FC = () => {
           : { dispatchId: active.id };
         await staffApi.consumeStock({ ...ref, items: usedItems }).catch(() => undefined);
       }
-      Alert.alert('Saved', 'Case notes saved successfully.', [
+      AppAlert.alert('Saved', 'Case notes saved successfully.', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (e: any) {
-      Alert.alert('Could not save', e?.message || 'Please try again.');
+      AppAlert.alert('Could not save', e?.message || 'Please try again.');
     } finally {
       setSaving(false);
     }

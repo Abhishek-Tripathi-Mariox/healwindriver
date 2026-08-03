@@ -1,4 +1,4 @@
-import { Alert } from 'react-native';
+import { AppAlert } from './appAlert';
 import {
   launchCamera,
   launchImageLibrary,
@@ -33,7 +33,7 @@ const toFile = (a: Asset): PhotoFile | null => {
 
 const chooseSource = (): Promise<'camera' | 'library' | null> =>
   new Promise((resolve) => {
-    Alert.alert(
+    AppAlert.alert(
       'Profile photo',
       'Choose a source',
       [

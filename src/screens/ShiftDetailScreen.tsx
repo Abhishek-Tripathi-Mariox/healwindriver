@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -49,7 +50,7 @@ export const ShiftDetailScreen: React.FC = () => {
       if (updated && updated._id) setS({ ...s, ...updated });
       else setS({ ...s, ...(clockedIn ? { clockOutAt: new Date().toISOString() } : { clockInAt: new Date().toISOString(), status: 'active' }) });
     } catch (e: any) {
-      Alert.alert(clockedIn ? 'Could not clock out' : 'Could not clock in', e?.message || 'Please try again.');
+      AppAlert.alert(clockedIn ? 'Could not clock out' : 'Could not clock in', e?.message || 'Please try again.');
     } finally {
       setBusy(false);
     }

@@ -13,6 +13,13 @@ export const photoFormData = (field: string, file: PhotoFile): FormData => {
   return form;
 };
 
+/** Wrap multiple picked files as multipart FormData under one repeated field name. */
+export const photosFormData = (field: string, files: PhotoFile[]): FormData => {
+  const form = new FormData();
+  for (const file of files) form.append(field, file as any);
+  return form;
+};
+
 /** Backend stores photo URLs as a string or an array — normalise to one URL. */
 export const firstPhotoUrl = (v: unknown): string | undefined => {
   if (!v) return undefined;

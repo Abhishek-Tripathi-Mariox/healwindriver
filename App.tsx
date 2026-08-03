@@ -14,6 +14,8 @@ import { authStore } from './src/state/authStore';
 import { useIncomingDispatch } from './src/state/dispatchStore';
 import { setPushNavigator, subscribeForeground } from './src/services/push';
 import { InAppBanner, BannerData } from './src/components/InAppBanner';
+import { AlertHost } from './src/services/appAlert';
+import { resolveNotifRoute } from './src/utils/notifRoute';
 import { NAV_STATE_KEY } from './src/api/storage';
 import { colors } from './src/theme';
 
@@ -26,7 +28,12 @@ function App(): React.JSX.Element {
 
   useEffect(() => {
     void authStore.bootstrap();
-    setPushNavigator((route, params) => navigate(route as never, params as never));
+    // Normalise the backend's route name (aliases + allow-list) so a tapped
+    // push actually lands on the right screen instead of silently doing nothing.
+    setPushNavigator((route, params) => {
+      const { target } = resolveNotifRoute({ route, ...(params || {}) });
+      if (target) navigate(target as never, params as never);
+    });
     // Foreground push → branded in-app banner (not a plain OS Alert). A ringing
     // dispatch has its own full-screen modal, so don't also banner those.
     const unsub = subscribeForeground((title, body, data) => {
@@ -77,6 +84,7 @@ function App(): React.JSX.Element {
           if (route) navigate(route as never, data as never);
         }}
       />
+      <AlertHost />
     </SafeAreaProvider>
   );
 }

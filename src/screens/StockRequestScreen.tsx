@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -61,7 +62,7 @@ export const StockRequestScreen: React.FC = () => {
       setSent(true);
       setQty({});
     } catch (e: any) {
-      Alert.alert('Request failed', e?.message || 'Could not submit your stock request. Please try again.');
+      AppAlert.alert('Request failed', e?.message || 'Could not submit your stock request. Please try again.');
     } finally {
       setSaving(false);
     }

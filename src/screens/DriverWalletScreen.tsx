@@ -1,5 +1,6 @@
 import React from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -42,11 +43,11 @@ export const DriverWalletScreen: React.FC = () => {
   const withdraw = async () => {
     const amt = Number(amount);
     if (!amt || amt <= 0) {
-      Alert.alert('Enter amount', 'Enter a valid amount to withdraw.');
+      AppAlert.alert('Enter amount', 'Enter a valid amount to withdraw.');
       return;
     }
     if (!bank?.accountNumber) {
-      Alert.alert('Add bank details', 'Please add your bank account before withdrawing.');
+      AppAlert.alert('Add bank details', 'Please add your bank account before withdrawing.');
       return;
     }
     setBusy(true);
@@ -55,9 +56,9 @@ export const DriverWalletScreen: React.FC = () => {
       setWithdrawOpen(false);
       setAmount('');
       load();
-      Alert.alert('Withdrawal requested', `₹${amt} withdrawal initiated to your bank.`);
+      AppAlert.alert('Withdrawal requested', `₹${amt} withdrawal initiated to your bank.`);
     } catch (e: any) {
-      Alert.alert('Could not withdraw', e?.message || 'Please try again.');
+      AppAlert.alert('Could not withdraw', e?.message || 'Please try again.');
     } finally {
       setBusy(false);
     }
@@ -75,7 +76,7 @@ export const DriverWalletScreen: React.FC = () => {
 
   const saveBank = async () => {
     if (!bankForm.accountHolderName.trim() || !bankForm.accountNumber.trim() || !bankForm.ifscCode.trim()) {
-      Alert.alert('Check details', 'Account holder, account number and IFSC are required.');
+      AppAlert.alert('Check details', 'Account holder, account number and IFSC are required.');
       return;
     }
     setBusy(true);
@@ -89,7 +90,7 @@ export const DriverWalletScreen: React.FC = () => {
       setBankOpen(false);
       load();
     } catch (e: any) {
-      Alert.alert('Could not save', e?.message || 'Please try again.');
+      AppAlert.alert('Could not save', e?.message || 'Please try again.');
     } finally {
       setBusy(false);
     }

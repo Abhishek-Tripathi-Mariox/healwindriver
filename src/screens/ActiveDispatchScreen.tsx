@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -8,6 +9,8 @@ import { ScreenHeader, TrackMap } from '../components';
 import { CheckCircleIcon, DirectionsArrowIcon, PhoneIcon } from '../components/icons';
 import { dispatchStore, useActiveDispatch, DispatchStatus, otpRequired } from '../state/dispatchStore';
 import { authStore } from '../state/authStore';
+import { staffApi } from '../api/staff';
+import { pickPatientMedia } from '../services/patientMedia';
 import { subscribePosition, getLastPosition, getCurrentPositionOnce } from '../services/location';
 import { distanceKm, etaMinutesFromKm } from '../services/geo';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
@@ -52,6 +55,7 @@ export const ActiveDispatchScreen: React.FC = () => {
   const [otp, setOtp] = useState('');
   const [otpErr, setOtpErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const [mediaBusy, setMediaBusy] = useState(false);
   // Live driver position → live distance/ETA to the patient.
   const [driverPos, setDriverPos] = useState<{ lat: number; lng: number } | null>(
     getLastPosition(),
@@ -101,7 +105,9 @@ export const ActiveDispatchScreen: React.FC = () => {
       case 'EN_ROUTE':
         return 'Mark Arrived (On Scene)';
       case 'ON_SCENE':
-        return staffFlow ? 'Verify OTP & Start Trip' : 'Complete Trip';
+        // SOS dispatches go through the same ON_SCENE→ON_TRIP step but skip
+        // the OTP prompt — only a proper "Book Ambulance" request needs it.
+        return !staffFlow ? 'Complete Trip' : otpRequired(d) ? 'Verify OTP & Start Trip' : 'Start Trip';
       case 'ON_TRIP':
         return 'Complete Trip (At Hospital)';
       default:
@@ -143,6 +149,22 @@ export const ActiveDispatchScreen: React.FC = () => {
       setOtp('');
     } else {
       setOtpErr('Incorrect OTP. Please re-check with the patient.');
+    }
+  };
+
+  const onCapturePatientMedia = async () => {
+    if (mediaBusy) return;
+    setMediaBusy(true);
+    try {
+      const files = await pickPatientMedia();
+      if (files.length) {
+        await staffApi.requestPatientMedia(d.id, files);
+        AppAlert.alert('Uploaded', `${files.length} item${files.length > 1 ? 's' : ''} added for the patient to see.`);
+      }
+    } catch (e: any) {
+      AppAlert.alert('Upload failed', e?.message || 'Could not upload the photo/video. Try again.');
+    } finally {
+      setMediaBusy(false);
     }
   };
 
@@ -225,6 +247,17 @@ export const ActiveDispatchScreen: React.FC = () => {
                 <Text style={styles.hospitalBtnText}>+ Add patient</Text>
               </Pressable>
             </>
+          )}
+          {d.kind === 'request' && (
+            <Pressable
+              disabled={mediaBusy}
+              style={[styles.hospitalBtn, mediaBusy && styles.pressed]}
+              onPress={onCapturePatientMedia}
+            >
+              <Text style={styles.hospitalBtnText}>
+                {mediaBusy ? 'Uploading…' : 'Capture patient photo/video'}
+              </Text>
+            </Pressable>
           )}
         </View>
       </ScrollView>

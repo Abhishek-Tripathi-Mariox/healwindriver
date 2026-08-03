@@ -1,5 +1,6 @@
 import React from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppAlert } from '../services/appAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -90,7 +91,7 @@ export const ShiftsScreen: React.FC = () => {
       else await staffApi.clockIn(s.id);
       load();
     } catch (e: any) {
-      Alert.alert(
+      AppAlert.alert(
         s.clockedIn ? 'Could not clock out' : 'Could not clock in',
         e?.message || 'Please try again.',
       );
