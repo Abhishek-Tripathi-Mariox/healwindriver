@@ -24,6 +24,7 @@ import { useDuty, dutyStore } from '../state/dutyStore';
 import { dispatchStore } from '../state/dispatchStore';
 import { ensureAppPermissions } from '../services/permissions';
 import { locationService, getCurrentPositionOnce } from '../services/location';
+import { captureDutySelfie } from '../services/dutySelfie';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
 import { cardShadow } from '../theme/shadows';
 import type { RootStackParamList } from '../navigation/types';
@@ -72,19 +73,43 @@ export const StaffHomeScreen: React.FC = () => {
   const [reasonOpen, setReasonOpen] = useState(false);
   const [reasons, setReasons] = useState<{ _id: string; label: string }[]>([]);
 
-  const applyDuty = async (v: boolean, reasonId?: string) => {
+  const applyDuty = async (
+    v: boolean,
+    reasonId?: string,
+    photo?: Awaited<ReturnType<typeof captureDutySelfie>>,
+    loc?: { lat: number; lng: number } | null,
+  ) => {
     setDutyBusy(true);
-    const ok = await dutyStore.set(v, true, reasonId);
-    if (!ok) AppAlert.alert('Could not update duty', 'Please check your connection and try again.');
+    const ok = await dutyStore.set(v, true, reasonId, photo || undefined, loc?.lat, loc?.lng);
+    if (!ok) {
+      AppAlert.alert('Could not update duty', 'Please check your connection and try again.');
+    } else if (v) {
+      const meta = dutyStore.getLastDutyMeta();
+      if (meta?.withinGeofence === false) {
+        AppAlert.alert(
+          'You look far from your hospital',
+          `You're about ${Math.round((meta.distanceMeters || 0) / 100) / 10} km away — you're on duty, but this has been noted for HR.`,
+        );
+      }
+    }
     setDutyBusy(false);
   };
 
-  // Going ON duty is instant; going OFF shows a reason picker (optional) so ops
-  // know why the crew is unavailable.
+  // Going ON duty asks for a check-in selfie first (skippable if the camera
+  // fails/is denied — attendance still records the toggle, just without a
+  // photo); going OFF shows a reason picker (optional) so ops know why the
+  // crew is unavailable.
   const onToggleDuty = async () => {
     if (dutyBusy) return;
     if (!onDuty) {
-      void applyDuty(true);
+      let photo: Awaited<ReturnType<typeof captureDutySelfie>> = null;
+      try {
+        photo = await captureDutySelfie();
+      } catch (e: any) {
+        AppAlert.alert('Camera unavailable', e?.message || 'Continuing without a check-in photo.');
+      }
+      const loc = await getCurrentPositionOnce().catch(() => null);
+      void applyDuty(true, undefined, photo, loc);
       return;
     }
     setReasonOpen(true);

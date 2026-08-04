@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { ScreenHeader } from '../components';
 import { staffApi } from '../api/staff';
@@ -19,9 +20,19 @@ export const AddPatientScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const [f, setF] = useState({ name: '', mobile: '', dob: '', pincode: '' });
   const [gender, setGender] = useState<string | null>(null);
+  const [dobDate, setDobDate] = useState<Date | null>(null);
+  const [showDobPicker, setShowDobPicker] = useState(false);
   const [err, setErr] = useState('');
   const [saving, setSaving] = useState(false);
   const set = (k: keyof typeof f) => (v: string) => setF((s) => ({ ...s, [k]: v }));
+
+  // Display + API format: "DD MMM YYYY" (e.g. 30 Sep 1990) — matches AddLeaveScreen's convention.
+  const onDobPicked = (event: any, selected?: Date) => {
+    setShowDobPicker(false); // Android dialog auto-dismisses; close our state too.
+    if (event?.type === 'dismissed' || !selected) return;
+    setDobDate(selected);
+    set('dob')(selected.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }));
+  };
 
   const onSave = async () => {
     if (saving) return;
@@ -69,7 +80,27 @@ export const AddPatientScreen: React.FC = () => {
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + verticalScale(30) }]}>
         <Input label="Patient Name" value={f.name} onChangeText={set('name')} />
         <Input label="Mobile number" value={f.mobile} onChangeText={(v) => set('mobile')(onlyDigits(v))} keyboardType="number-pad" maxLength={10} />
-        <Input label="D.O.B" value={f.dob} onChangeText={set('dob')} placeholder="DD MMM YYYY" />
+        <View style={styles.field}>
+          <Text style={styles.label}>D.O.B</Text>
+          <Pressable onPress={() => setShowDobPicker(true)} style={styles.input}>
+            <Text style={[styles.dateText, !f.dob && styles.datePlaceholder]}>{f.dob || 'Select date of birth'}</Text>
+          </Pressable>
+        </View>
+        {showDobPicker && (
+          <DateTimePicker
+            value={dobDate || new Date()}
+            mode="date"
+            display="calendar"
+            maximumDate={new Date()}
+            onChange={onDobPicked}
+            onError={() => {
+              // Guard against a missing/mis-built native picker module so the
+              // app surfaces an error instead of hard-crashing on date tap.
+              setShowDobPicker(false);
+              setErr('Could not open the date picker. Please update the app.');
+            }}
+          />
+        )}
         <Text style={styles.label}>Gender</Text>
         <View style={styles.chips}>
           {GENDERS.map((g) => (
@@ -100,7 +131,9 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingTop: verticalScale(4) },
   field: { marginBottom: verticalScale(12) },
   label: { fontFamily: fonts.medium, fontSize: scale(13), color: '#4A4A4A', marginBottom: verticalScale(6), marginTop: verticalScale(6) },
-  input: { height: verticalScale(46), borderRadius: scale(10), borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, paddingHorizontal: scale(14), fontFamily: fonts.regular, fontSize: scale(14), color: colors.textBlack },
+  input: { height: verticalScale(46), borderRadius: scale(10), borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, paddingHorizontal: scale(14), fontFamily: fonts.regular, fontSize: scale(14), color: colors.textBlack, justifyContent: 'center' },
+  dateText: { fontFamily: fonts.regular, fontSize: scale(14), color: colors.textBlack },
+  datePlaceholder: { color: colors.placeholder },
   chips: { flexDirection: 'row', gap: scale(10), marginBottom: verticalScale(8) },
   chip: { paddingHorizontal: scale(16), height: verticalScale(36), borderRadius: scale(18), backgroundColor: colors.tabInactive, alignItems: 'center', justifyContent: 'center' },
   chipActive: { backgroundColor: colors.directionsBlue },

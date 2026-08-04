@@ -8,6 +8,7 @@ const K_ROLE = 'hwd.role';
 const K_ID = 'hwd.id';
 const K_PHONE = 'hwd.phone';
 const K_DEVICE = 'hwd.deviceId';
+const K_LOCATION_EXPLAINER_SHOWN = 'hwd.locationExplainerShown';
 
 /** Persisted React Navigation state — reopen on the same screen. */
 export const NAV_STATE_KEY = 'hwd.navState';
@@ -40,5 +41,14 @@ export const storage = {
       await AsyncStorage.setItem(K_DEVICE, id);
     }
     return id;
+  },
+
+  /** Whether the "why we need background location" explainer has already
+   * been shown once this install (see services/location.ts#ensurePermission). */
+  async getLocationExplainerShown(): Promise<boolean> {
+    return (await AsyncStorage.getItem(K_LOCATION_EXPLAINER_SHOWN)) === '1';
+  },
+  async setLocationExplainerShown(): Promise<void> {
+    await AsyncStorage.setItem(K_LOCATION_EXPLAINER_SHOWN, '1');
   },
 };

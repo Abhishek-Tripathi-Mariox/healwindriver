@@ -4,6 +4,7 @@ import { driverApi } from '../api/driver';
 import { staffApi } from '../api/staff';
 import { socketService } from './socket';
 import { AppAlert } from './appAlert';
+import { storage } from '../api/storage';
 import type { AppRole } from '../api/storage';
 
 /**
@@ -34,6 +35,28 @@ export const getLastPosition = (): { lat: number; lng: number } | null => lastPo
 // location fetch — otherwise this would pop on every single call.
 let backgroundPromptShown = false;
 
+// Explains WHY we're about to ask for "Allow all the time" before the native
+// OS dialogs fire, instead of only apologizing afterward via the Settings
+// nudge below — crew are far more likely to grant background location when
+// they understand it up front. Shown once per install.
+let explainerPromise: Promise<void> | null = null;
+const showBackgroundLocationExplainer = (): Promise<void> => {
+  if (explainerPromise) return explainerPromise;
+  explainerPromise = (async () => {
+    if (await storage.getLocationExplainerShown()) return;
+    await storage.setLocationExplainerShown();
+    await new Promise<void>((resolve) => {
+      AppAlert.alert(
+        'Allow location access',
+        'HealWin needs your location to receive dispatches and stream live tracking to the patient/admin — even while the app is in the background or the screen is locked. On the next screen, please choose "Allow all the time".',
+        [{ text: 'Continue', onPress: () => resolve() }],
+        { cancelable: false },
+      );
+    });
+  })();
+  return explainerPromise;
+};
+
 export const ensurePermission = async (): Promise<boolean> => {
   if (Platform.OS !== 'android') {
     try {
@@ -43,6 +66,7 @@ export const ensurePermission = async (): Promise<boolean> => {
     }
     return true;
   }
+  await showBackgroundLocationExplainer();
   try {
     const res = await PermissionsAndroid.request(
       PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
