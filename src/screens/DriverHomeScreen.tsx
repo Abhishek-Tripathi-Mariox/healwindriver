@@ -241,8 +241,8 @@ export const DriverHomeScreen: React.FC = () => {
 const styles = StyleSheet.create({
   sosBtn: { height: scale(40), paddingHorizontal: scale(14), borderRadius: scale(20), backgroundColor: colors.brandRed, alignItems: 'center', justifyContent: 'center' },
   sosText: { fontFamily: fonts.bold, fontSize: scale(14), color: colors.textWhite, letterSpacing: 1 },
-  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: colors.surface, borderTopLeftRadius: scale(18), borderTopRightRadius: scale(18), padding: spacing.lg, paddingBottom: verticalScale(28) },
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(17,20,24,0.45)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: colors.surface, borderTopLeftRadius: scale(26), borderTopRightRadius: scale(26), padding: spacing.lg, paddingBottom: verticalScale(28), ...cardShadow },
   sheetTitle: { fontFamily: fonts.bold, fontSize: scale(16), color: colors.ink, marginBottom: verticalScale(10) },
   reasonRow: { paddingVertical: verticalScale(14), borderBottomWidth: 1, borderBottomColor: colors.dashBorder },
   reasonText: { fontFamily: fonts.medium, fontSize: scale(15), color: colors.textPrimary },

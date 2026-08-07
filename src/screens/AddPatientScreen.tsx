@@ -8,6 +8,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { ScreenHeader } from '../components';
 import { staffApi } from '../api/staff';
 import { dispatchStore } from '../state/dispatchStore';
+import { pickPatientMedia } from '../services/patientMedia';
+import type { PhotoFile } from '../api/upload';
 import { onlyDigits, isValidName, NAME_ERROR, isValidMobile, MOBILE_ERROR } from '../utils/validation';
 import { colors, fonts, scale, spacing, verticalScale } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
@@ -24,7 +26,25 @@ export const AddPatientScreen: React.FC = () => {
   const [showDobPicker, setShowDobPicker] = useState(false);
   const [err, setErr] = useState('');
   const [saving, setSaving] = useState(false);
+  const [media, setMedia] = useState<PhotoFile[]>([]);
+  const [picking, setPicking] = useState(false);
   const set = (k: keyof typeof f) => (v: string) => setF((s) => ({ ...s, [k]: v }));
+
+  // Camera or gallery, photo or video (120s cap, compressed) — same helper
+  // already used for in-transit patient media.
+  const addMedia = async () => {
+    if (picking) return;
+    setPicking(true);
+    try {
+      const picked = await pickPatientMedia();
+      if (picked.length) setMedia((m) => [...m, ...picked]);
+    } catch (e: any) {
+      setErr(e?.message || 'Could not open the camera/gallery.');
+    } finally {
+      setPicking(false);
+    }
+  };
+  const removeMedia = (i: number) => setMedia((m) => m.filter((_, idx) => idx !== i));
 
   // Display + API format: "DD MMM YYYY" (e.g. 30 Sep 1990) — matches AddLeaveScreen's convention.
   const onDobPicked = (event: any, selected?: Date) => {
@@ -56,7 +76,7 @@ export const AddPatientScreen: React.FC = () => {
       // If the crew is on an active dispatch, link this patient to that SOS
       // journey so the dispatch (and admin) show who was treated.
       const dispatchId = dispatchStore.getSnapshot().active?.id;
-      await staffApi.addPatient({
+      const res: any = await staffApi.addPatient({
         name: f.name.trim(),
         mobile: f.mobile.trim(),
         dob: f.dob.trim() || undefined,
@@ -64,6 +84,13 @@ export const AddPatientScreen: React.FC = () => {
         pincode: f.pincode.trim() || undefined,
         dispatchId,
       });
+      // Media upload is best-effort — the patient record itself is already
+      // saved by this point, so a failed upload shouldn't block navigating
+      // away or lose the registration.
+      const patientId = res?.item?._id;
+      if (patientId && media.length) {
+        await staffApi.addPatientMedia(patientId, media).catch(() => undefined);
+      }
       // Refresh the active dispatch so the just-linked patient shows up.
       if (dispatchId) await dispatchStore.hydrate('staff').catch(() => undefined);
       navigation.goBack();
@@ -110,6 +137,22 @@ export const AddPatientScreen: React.FC = () => {
           ))}
         </View>
         <Input label="Pin Code" value={f.pincode} onChangeText={(v) => set('pincode')(onlyDigits(v, 6))} keyboardType="number-pad" maxLength={6} />
+
+        <Text style={styles.label}>Photos / Videos</Text>
+        {media.map((m, i) => (
+          <View key={`${m.uri}-${i}`} style={styles.mediaRow}>
+            <Text style={styles.mediaIcon}>{m.type?.startsWith('video/') ? '🎥' : '🖼️'}</Text>
+            <Text style={styles.mediaName} numberOfLines={1}>{m.name}</Text>
+            <Pressable onPress={() => removeMedia(i)} hitSlop={8}>
+              <Text style={styles.mediaRemove}>✕</Text>
+            </Pressable>
+          </View>
+        ))}
+        <Pressable disabled={picking} onPress={addMedia} style={styles.addMediaBtn}>
+          <Text style={styles.addMediaText}>{picking ? 'Opening…' : '+ Add Photo / Video'}</Text>
+        </Pressable>
+        <Text style={styles.hint}>Camera or gallery · videos up to 120 seconds</Text>
+
         {!!err && <Text style={styles.err}>{err}</Text>}
         <Pressable disabled={saving} onPress={onSave} style={({ pressed }) => [styles.cta, (pressed || saving) && styles.pressed]}>
           <Text style={styles.ctaText}>{saving ? 'Saving…' : 'Save Patient'}</Text>
@@ -140,6 +183,32 @@ const styles = StyleSheet.create({
   chipText: { fontFamily: fonts.medium, fontSize: scale(13), color: '#5B5B5B' },
   chipTextActive: { color: colors.textWhite },
   err: { fontFamily: fonts.medium, fontSize: scale(12), color: colors.brandRed, marginTop: verticalScale(6) },
+  mediaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(8),
+    height: verticalScale(40),
+    borderRadius: scale(10),
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    backgroundColor: colors.surface,
+    paddingHorizontal: scale(12),
+    marginBottom: verticalScale(8),
+  },
+  mediaIcon: { fontSize: scale(15) },
+  mediaName: { flex: 1, fontFamily: fonts.regular, fontSize: scale(13), color: colors.textBlack },
+  mediaRemove: { fontFamily: fonts.bold, fontSize: scale(14), color: colors.brandRed, paddingHorizontal: scale(4) },
+  addMediaBtn: {
+    height: verticalScale(44),
+    borderRadius: scale(10),
+    borderWidth: 1,
+    borderColor: colors.directionsBlue,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: verticalScale(4),
+  },
+  addMediaText: { fontFamily: fonts.semiBold, fontSize: scale(14), color: colors.directionsBlue },
+  hint: { fontFamily: fonts.regular, fontSize: scale(11), color: colors.inkMuted, marginTop: verticalScale(4), marginBottom: verticalScale(4) },
   cta: { height: verticalScale(50), borderRadius: scale(12), backgroundColor: colors.directionsBlue, alignItems: 'center', justifyContent: 'center', marginTop: verticalScale(22) },
   pressed: { opacity: 0.85 },
   ctaText: { fontFamily: fonts.bold, fontSize: scale(16), color: colors.textWhite },

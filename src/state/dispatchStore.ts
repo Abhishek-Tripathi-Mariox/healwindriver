@@ -172,13 +172,13 @@ const nextOf = (d: Dispatch): DispatchStatus => {
 
 /**
  * True when the next step is the OTP-verified trip start (patient pickup).
- * Only a proper "Book Ambulance" request (kind: 'request') asks for it — an
- * SOS dispatch (kind: 'dispatch') still goes through the same ON_SCENE→ON_TRIP
- * step, but skips the OTP prompt (the backend never mints an otp for SOS, so
- * this must stay in sync with that).
+ * Both staff flows ask for it — a proper "Book Ambulance" request (kind:
+ * 'request') AND an SOS dispatch (kind: 'dispatch', as of 2026-08 — SOS used
+ * to skip this, but the backend now mints a real otp for SOS dispatches too,
+ * see ambulance-dispatch.service.ts, so this must stay in sync with that).
  */
 export const otpRequired = (d: Dispatch | null): boolean =>
-  !!d && d.kind === 'request' && nextOf(d) === 'ON_TRIP';
+  !!d && (d.kind === 'request' || d.kind === 'dispatch') && nextOf(d) === 'ON_TRIP';
 
 // The "Simulate incoming dispatch" dev/test helper rings a fake dispatch with
 // this id. It has no backend record, so every lifecycle call (accept, reject,

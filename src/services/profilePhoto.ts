@@ -11,6 +11,7 @@ import { staffApi } from '../api/staff';
 import { authStore } from '../state/authStore';
 import type { PhotoFile } from '../api/upload';
 import type { AppRole } from '../api/storage';
+import { ensureCameraPermission } from './cameraPermission';
 
 const PICK_OPTS: ImageLibraryOptions = {
   mediaType: 'photo',
@@ -52,6 +53,9 @@ const chooseSource = (): Promise<'camera' | 'library' | null> =>
 export const pickProfilePhoto = async (): Promise<PhotoFile | null> => {
   const source = await chooseSource();
   if (!source) return null;
+  if (source === 'camera' && !(await ensureCameraPermission())) {
+    throw new Error('Camera permission is required to take a photo.');
+  }
   const res =
     source === 'camera'
       ? await launchCamera({ ...PICK_OPTS, saveToPhotos: false })

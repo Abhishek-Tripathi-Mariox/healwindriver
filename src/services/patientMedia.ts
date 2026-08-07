@@ -9,6 +9,7 @@ import {
 import { Image as ImageCompressor, Video as VideoCompressor } from 'react-native-compressor';
 
 import type { PhotoFile } from '../api/upload';
+import { ensureCameraPermission } from './cameraPermission';
 
 const MAX_VIDEO_SECONDS = 120;
 
@@ -67,6 +68,9 @@ const compress = async (a: Asset): Promise<PhotoFile | null> => {
 export const pickPatientMedia = async (): Promise<PhotoFile[]> => {
   const source = await chooseSource();
   if (!source) return [];
+  if (source === 'camera' && !(await ensureCameraPermission())) {
+    throw new Error('Camera permission is required to take a photo/video.');
+  }
   const res =
     source === 'camera'
       ? await launchCamera(CAMERA_OPTS)

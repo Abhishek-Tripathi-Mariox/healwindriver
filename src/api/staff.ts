@@ -10,30 +10,8 @@ export const staffApi = {
   // Backend expects the file under the field name "profilePhoto".
   updateProfilePhoto: (file: PhotoFile) =>
     api.postForm('/ambulance-staff/profile-photo', photoFormData('profilePhoto', file)),
-  // Going ON duty attaches a selfie + GPS fix (geofence check against the
-  // crew member's assigned hospital/Centre, where one exists — see backend
-  // ambulance-staff.controller.ts#setDuty; informational only, never blocks
-  // the toggle). Going OFF duty needs neither, so that stays plain JSON.
-  setDuty: (
-    onDuty: boolean,
-    opts?: { offDutyReasonId?: string; photo?: PhotoFile; lat?: number; lng?: number },
-  ) => {
-    if (onDuty && opts?.photo) {
-      const form = new FormData();
-      form.append('isDutyOn', 'true');
-      if (opts.lat != null) form.append('lat', String(opts.lat));
-      if (opts.lng != null) form.append('lng', String(opts.lng));
-      form.append('photo', opts.photo as any);
-      return api.postForm<{ isDutyOn: boolean; distanceMeters?: number; withinGeofence?: boolean }>(
-        '/ambulance-staff/duty',
-        form,
-      );
-    }
-    return api.post<{ isDutyOn: boolean }>('/ambulance-staff/duty', {
-      isDutyOn: onDuty,
-      reasonId: !onDuty ? opts?.offDutyReasonId : undefined,
-    });
-  },
+  setDuty: (onDuty: boolean, offDutyReasonId?: string) =>
+    api.post('/ambulance-staff/duty', { onDuty, isDutyOn: onDuty, offDutyReasonId }),
   updateLocation: (lat: number, lng: number) =>
     api.post('/ambulance-staff/location', { lat, lng }).catch(() => undefined),
 
@@ -112,6 +90,10 @@ export const staffApi = {
   patients: () => api.get<any>('/ambulance-staff/patients').then((d) => (Array.isArray(d) ? d : d?.items ?? [])),
   addPatient: (data: { name: string; mobile?: string; dob?: string; gender?: string; pincode?: string; dispatchId?: string }) =>
     api.post('/ambulance-staff/patients', data),
+  // Photo/video captured while registering a field patient — stored on the
+  // patient's real record (documents[]), same place the admin desk uploads to.
+  addPatientMedia: (patientId: string, files: PhotoFile[]) =>
+    api.postForm(`/ambulance-staff/patients/${patientId}/media`, photosFormData('media', files)),
   saveCaseNotes: (data: { dispatchId?: string; patientId?: string; vitals?: any; notes?: string }) =>
     api.post('/ambulance-staff/case-notes', data),
   stockRequest: (items: { itemId?: string; name: string; qty: number }[]) =>

@@ -24,7 +24,6 @@ import { useDuty, dutyStore } from '../state/dutyStore';
 import { dispatchStore } from '../state/dispatchStore';
 import { ensureAppPermissions } from '../services/permissions';
 import { locationService, getCurrentPositionOnce } from '../services/location';
-import { captureDutySelfie } from '../services/dutySelfie';
 import { colors, fonts, radius, scale, spacing, verticalScale } from '../theme';
 import { cardShadow } from '../theme/shadows';
 import type { RootStackParamList } from '../navigation/types';
@@ -73,43 +72,19 @@ export const StaffHomeScreen: React.FC = () => {
   const [reasonOpen, setReasonOpen] = useState(false);
   const [reasons, setReasons] = useState<{ _id: string; label: string }[]>([]);
 
-  const applyDuty = async (
-    v: boolean,
-    reasonId?: string,
-    photo?: Awaited<ReturnType<typeof captureDutySelfie>>,
-    loc?: { lat: number; lng: number } | null,
-  ) => {
+  const applyDuty = async (v: boolean, reasonId?: string) => {
     setDutyBusy(true);
-    const ok = await dutyStore.set(v, true, reasonId, photo || undefined, loc?.lat, loc?.lng);
-    if (!ok) {
-      AppAlert.alert('Could not update duty', 'Please check your connection and try again.');
-    } else if (v) {
-      const meta = dutyStore.getLastDutyMeta();
-      if (meta?.withinGeofence === false) {
-        AppAlert.alert(
-          'You look far from your hospital',
-          `You're about ${Math.round((meta.distanceMeters || 0) / 100) / 10} km away — you're on duty, but this has been noted for HR.`,
-        );
-      }
-    }
+    const ok = await dutyStore.set(v, true, reasonId);
+    if (!ok) AppAlert.alert('Could not update duty', 'Please check your connection and try again.');
     setDutyBusy(false);
   };
 
-  // Going ON duty asks for a check-in selfie first (skippable if the camera
-  // fails/is denied — attendance still records the toggle, just without a
-  // photo); going OFF shows a reason picker (optional) so ops know why the
-  // crew is unavailable.
+  // Going ON duty is instant; going OFF shows a reason picker (optional) so ops
+  // know why the crew is unavailable.
   const onToggleDuty = async () => {
     if (dutyBusy) return;
     if (!onDuty) {
-      let photo: Awaited<ReturnType<typeof captureDutySelfie>> = null;
-      try {
-        photo = await captureDutySelfie();
-      } catch (e: any) {
-        AppAlert.alert('Camera unavailable', e?.message || 'Continuing without a check-in photo.');
-      }
-      const loc = await getCurrentPositionOnce().catch(() => null);
-      void applyDuty(true, undefined, photo, loc);
+      void applyDuty(true);
       return;
     }
     setReasonOpen(true);
@@ -374,9 +349,9 @@ const styles = StyleSheet.create({
   tile: { width: '47%', flexGrow: 1, backgroundColor: colors.surface, borderRadius: radius.card, padding: scale(16), gap: verticalScale(10) },
   tileIcon: { width: scale(44), height: scale(44), borderRadius: scale(12), backgroundColor: '#EAF1FE', alignItems: 'center', justifyContent: 'center' },
   tileLabel: { fontFamily: fonts.semiBold, fontSize: scale(14), color: colors.textBlack },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)' },
-  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.background, borderTopLeftRadius: scale(18), borderTopRightRadius: scale(18), paddingHorizontal: spacing.lg, paddingTop: verticalScale(10) },
-  handle: { alignSelf: 'center', width: scale(90), height: scale(4), borderRadius: scale(3), backgroundColor: '#C9CDD2', marginBottom: verticalScale(14) },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(17,20,24,0.4)' },
+  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.background, borderTopLeftRadius: scale(26), borderTopRightRadius: scale(26), paddingHorizontal: spacing.lg, paddingTop: verticalScale(12), ...cardShadow },
+  handle: { alignSelf: 'center', width: scale(44), height: scale(5), borderRadius: scale(3), backgroundColor: '#D8DBE0', marginBottom: verticalScale(16) },
   sheetTitle: { fontFamily: fonts.bold, fontSize: scale(16), color: colors.textBlack, marginBottom: verticalScale(8) },
   reasonRow: { paddingVertical: verticalScale(14), borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E2E2E2' },
   reasonText: { fontFamily: fonts.medium, fontSize: scale(15), color: colors.textBlack },

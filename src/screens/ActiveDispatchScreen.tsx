@@ -105,8 +105,6 @@ export const ActiveDispatchScreen: React.FC = () => {
       case 'EN_ROUTE':
         return 'Mark Arrived (On Scene)';
       case 'ON_SCENE':
-        // SOS dispatches go through the same ON_SCENE→ON_TRIP step but skip
-        // the OTP prompt — only a proper "Book Ambulance" request needs it.
         return !staffFlow ? 'Complete Trip' : otpRequired(d) ? 'Verify OTP & Start Trip' : 'Start Trip';
       case 'ON_TRIP':
         return 'Complete Trip (At Hospital)';
@@ -339,16 +337,16 @@ const styles = StyleSheet.create({
   quickText: { fontFamily: fonts.semiBold, fontSize: scale(14), color: colors.ink },
   hospitalBtn: { marginTop: verticalScale(12), height: verticalScale(44), borderRadius: scale(10), borderWidth: 1.5, borderColor: colors.directionsBlue, alignItems: 'center', justifyContent: 'center' },
   hospitalBtnText: { fontFamily: fonts.semiBold, fontSize: scale(14), color: colors.directionsBlue },
-  otpBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
-  otpCard: { width: '100%', backgroundColor: colors.surface, borderRadius: scale(16), padding: scale(20) },
+  otpBackdrop: { flex: 1, backgroundColor: 'rgba(17,20,24,0.5)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
+  otpCard: { width: '100%', maxWidth: scale(360), backgroundColor: colors.surface, borderRadius: scale(24), padding: scale(22), ...cardShadow },
   otpTitle: { fontFamily: fonts.bold, fontSize: scale(18), color: colors.textBlack },
   otpSub: { fontFamily: fonts.regular, fontSize: scale(13), color: colors.inkMuted, marginTop: verticalScale(6) },
-  otpInput: { marginTop: verticalScale(16), height: verticalScale(54), borderRadius: scale(10), borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, textAlign: 'center', letterSpacing: scale(8), fontFamily: fonts.bold, fontSize: scale(22), color: colors.textBlack },
+  otpInput: { marginTop: verticalScale(16), height: verticalScale(56), borderRadius: scale(16), borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.surface, textAlign: 'center', letterSpacing: scale(8), fontFamily: fonts.bold, fontSize: scale(22), color: colors.textBlack },
   otpErr: { fontFamily: fonts.medium, fontSize: scale(12), color: colors.brandRed, marginTop: verticalScale(8) },
   otpRow: { flexDirection: 'row', gap: scale(12), marginTop: verticalScale(18) },
-  otpCancel: { flex: 1, height: verticalScale(48), borderRadius: scale(10), borderWidth: 1.5, borderColor: colors.inputBorder, alignItems: 'center', justifyContent: 'center' },
+  otpCancel: { flex: 1, height: verticalScale(48), borderRadius: scale(24), borderWidth: 1.5, borderColor: colors.inputBorder, alignItems: 'center', justifyContent: 'center' },
   otpCancelText: { fontFamily: fonts.semiBold, fontSize: scale(15), color: colors.inkMuted },
-  otpVerify: { flex: 1.4, height: verticalScale(48), borderRadius: scale(10), backgroundColor: colors.payGreen, alignItems: 'center', justifyContent: 'center' },
+  otpVerify: { flex: 1.4, height: verticalScale(48), borderRadius: scale(24), backgroundColor: colors.payGreen, alignItems: 'center', justifyContent: 'center' },
   otpVerifyText: { fontFamily: fonts.bold, fontSize: scale(15), color: colors.textWhite },
   bar: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: '#ECECEC', paddingHorizontal: spacing.md, paddingTop: verticalScale(12) },
   cta: { height: verticalScale(52), borderRadius: scale(12), backgroundColor: colors.directionsBlue, alignItems: 'center', justifyContent: 'center' },
