@@ -91,8 +91,15 @@ export const mapEmergencyDispatch = (raw: any): Dispatch | null => {
   return {
     id: String(raw.dispatchId || raw._id || raw.id || ''),
     kind: 'dispatch',
-    patient: raw.patientName || raw.serviceName || 'Emergency patient',
-    phone: raw.servicePhone || raw.patientPhone || '',
+    // `serviceName` is the AMBULANCE REGISTRATION NUMBER and `servicePhone` is
+    // the assigned crew's own mobile — neither identifies the patient. Using
+    // them here made the card show a vehicle plate as the patient's name and
+    // made "Call" dial the crew's own number instead of the patient.
+    patient:
+      raw.patientName || raw.hospitalPatient?.name || 'Emergency patient',
+    // Ring whoever is most certainly the patient of the case running now: the
+    // one the crew registered in the field, else the dispatch's own contact.
+    phone: raw.hospitalPatient?.phone || raw.patientPhone || '',
     pickup: raw.address || raw.patientAddress || (coords ? `${coords[1]}, ${coords[0]}` : 'Patient location'),
     drop: raw.serviceName || raw.hospitalName || 'Destination hospital',
     km: num(raw.roadDistanceKm ?? raw.distanceKm),

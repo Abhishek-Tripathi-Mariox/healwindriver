@@ -202,9 +202,32 @@ export const ActiveDispatchScreen: React.FC = () => {
           <Row label="Drop" value={d.drop} />
 
           <View style={styles.quickRow}>
-            <Pressable style={styles.quickBtn} onPress={() => Linking.openURL(`tel:${d.phone.replace(/\s/g, '')}`)}>
-              <PhoneIcon size={scale(18)} color={colors.callGreen} />
-              <Text style={styles.quickText}>Call</Text>
+            {/* Calls the patient of the case running right now — both the
+                driver and the attendant get this. Disabled rather than opening
+                an empty dialler when the dispatch carries no number. */}
+            <Pressable
+              style={[styles.quickBtn, !d.phone && styles.quickBtnOff]}
+              disabled={!d.phone}
+              accessibilityRole="button"
+              accessibilityState={{disabled: !d.phone}}
+              accessibilityLabel={
+                d.phone
+                  ? `Call patient ${d.patient}`
+                  : 'No patient number on this dispatch'
+              }
+              onPress={() =>
+                Linking.openURL(`tel:${d.phone.replace(/\s/g, '')}`).catch(
+                  () => undefined,
+                )
+              }
+            >
+              <PhoneIcon
+                size={scale(18)}
+                color={d.phone ? colors.callGreen : colors.inkMuted}
+              />
+              <Text style={styles.quickText}>
+                {d.phone ? 'Call patient' : 'No number'}
+              </Text>
             </Pressable>
             <Pressable
               style={styles.quickBtn}
@@ -333,6 +356,7 @@ const styles = StyleSheet.create({
   rowLabel: { width: scale(60), fontFamily: fonts.semiBold, fontSize: scale(13), color: colors.inkMuted },
   rowValue: { flex: 1, fontFamily: fonts.medium, fontSize: scale(13), color: colors.textBlack },
   quickRow: { flexDirection: 'row', gap: scale(12), marginTop: verticalScale(6) },
+  quickBtnOff: {opacity: 0.45},
   quickBtn: { flex: 1, flexDirection: 'row', gap: scale(8), height: verticalScale(44), borderRadius: scale(10), backgroundColor: colors.softPurple, alignItems: 'center', justifyContent: 'center' },
   quickText: { fontFamily: fonts.semiBold, fontSize: scale(14), color: colors.ink },
   hospitalBtn: { marginTop: verticalScale(12), height: verticalScale(44), borderRadius: scale(10), borderWidth: 1.5, borderColor: colors.directionsBlue, alignItems: 'center', justifyContent: 'center' },

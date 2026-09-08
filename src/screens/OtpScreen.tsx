@@ -11,7 +11,8 @@ import { authStore } from '../state/authStore';
 import { colors, fonts, scale, spacing, verticalScale } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
-const LEN = 6;
+// Digits in an OTP — matches the backend's OTP_LENGTH (utils/helpers.ts).
+const LEN = 4;
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Otp'>;
 type Rt = RouteProp<RootStackParamList, 'Otp'>;
 
