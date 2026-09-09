@@ -19,21 +19,35 @@ const PICK_OPTS: ImageLibraryOptions = {
   includeBase64: false,
 };
 
-// Caps recording length in-camera; gallery picks still need the post-pick
-// duration check below since a library video can already be longer.
-const CAMERA_OPTS: CameraOptions = {
+/**
+ * The camera must be told photo OR video — it cannot offer both.
+ *
+ * Android launches the camera through an intent, and there are two separate
+ * ones: ACTION_IMAGE_CAPTURE and ACTION_VIDEO_CAPTURE. react-native-image-picker
+ * maps `mediaType: 'mixed'` onto the IMAGE intent (see its
+ * ImagePickerModuleImpl#launchCamera), so asking for 'mixed' silently opened a
+ * stills-only camera with no way to record — exactly what it looked like to
+ * the crew. The gallery has no such limit and still accepts both.
+ */
+const cameraOptsFor = (kind: 'photo' | 'video'): CameraOptions => ({
   ...PICK_OPTS,
+  mediaType: kind,
   saveToPhotos: false,
+  // Caps recording length in-camera; gallery picks still need the post-pick
+  // duration check below, since a library video can already be longer.
   durationLimit: MAX_VIDEO_SECONDS,
-};
+});
 
-const chooseSource = (): Promise<'camera' | 'library' | null> =>
+type Source = 'photo' | 'video' | 'library';
+
+const chooseSource = (): Promise<Source | null> =>
   new Promise((resolve) => {
     AppAlert.alert(
       'Patient photo/video',
-      'Choose a source',
+      'What would you like to capture?',
       [
-        { text: 'Take photo/video', onPress: () => resolve('camera') },
+        { text: 'Take photo', onPress: () => resolve('photo') },
+        { text: 'Record video', onPress: () => resolve('video') },
         { text: 'Choose from gallery', onPress: () => resolve('library') },
         { text: 'Cancel', style: 'cancel', onPress: () => resolve(null) },
       ],
@@ -68,13 +82,13 @@ const compress = async (a: Asset): Promise<PhotoFile | null> => {
 export const pickPatientMedia = async (): Promise<PhotoFile[]> => {
   const source = await chooseSource();
   if (!source) return [];
-  if (source === 'camera' && !(await ensureCameraPermission())) {
+  const usingCamera = source === 'photo' || source === 'video';
+  if (usingCamera && !(await ensureCameraPermission())) {
     throw new Error('Camera permission is required to take a photo/video.');
   }
-  const res =
-    source === 'camera'
-      ? await launchCamera(CAMERA_OPTS)
-      : await launchImageLibrary(PICK_OPTS);
+  const res = usingCamera
+    ? await launchCamera(cameraOptsFor(source))
+    : await launchImageLibrary(PICK_OPTS);
   if (res.didCancel) return [];
   if (res.errorCode) {
     throw new Error(res.errorMessage || 'Could not open the photo/video picker.');
