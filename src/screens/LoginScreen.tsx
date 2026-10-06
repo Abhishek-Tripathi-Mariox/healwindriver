@@ -27,6 +27,10 @@ export const LoginScreen: React.FC = () => {
   // ambulance-staff directory (driver/attendant); if the number isn't an
   // onboarded staff member, we fall back to a standalone driver login. The
   // granular role then comes from the server on OTP verify.
+  //
+  // Both rosters are invite-only: an unknown number is refused outright and
+  // never receives an OTP, so the failure needs a real explanation rather than
+  // "could not send OTP".
   const sendOtp = async () => {
     if (!valid || loading) return;
     setError('');
@@ -45,7 +49,15 @@ export const LoginScreen: React.FC = () => {
       }
       navigation.navigate('Otp', { mobileNumber, txnId: res.txnId, role });
     } catch (e: any) {
-      setError(e?.message || 'Could not send OTP. Please try again.');
+      // 404 is the driver roster's "not registered". Because this screen also
+      // serves ambulance crew, word it for both instead of echoing the
+      // driver-only copy. 403 (suspended / rejected / deactivated) already
+      // carries its own explanation from the server.
+      setError(
+        e?.status === 404
+          ? "This number isn't registered with HealWin. Please contact the HealWin team to get onboarded."
+          : e?.message || 'Could not send OTP. Please try again.',
+      );
     } finally {
       setLoading(false);
     }
