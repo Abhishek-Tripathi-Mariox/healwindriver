@@ -10,6 +10,7 @@ import { CheckCircleIcon, DirectionsArrowIcon, PhoneIcon } from '../components/i
 import { dispatchStore, useActiveDispatch, DispatchStatus, otpRequired } from '../state/dispatchStore';
 import { authStore } from '../state/authStore';
 import { staffApi } from '../api/staff';
+import { CREW_CANCEL_REASONS, type CancelReason } from '../constants/cancelReasons';
 import { pickPatientMedia } from '../services/patientMedia';
 import { subscribePosition, getLastPosition, getCurrentPositionOnce } from '../services/location';
 import { distanceKm, etaMinutesFromKm } from '../services/geo';
@@ -54,6 +55,7 @@ export const ActiveDispatchScreen: React.FC = () => {
   const [otpOpen, setOtpOpen] = useState(false);
   const [otp, setOtp] = useState('');
   const [otpErr, setOtpErr] = useState('');
+  const [cancelOpen, setCancelOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [mediaBusy, setMediaBusy] = useState(false);
   // Live driver position → live distance/ETA to the patient.
@@ -87,6 +89,10 @@ export const ActiveDispatchScreen: React.FC = () => {
   const isAttendant = authStore.getSnapshot().profile?.staff?.role === 'attendant';
   const otpBlockedForAttendant = otpRequired(d) && isAttendant;
 
+  // An attendant rides along; standing the run down is the driver's call.
+  const canCancelRun =
+    !isAttendant && ['ACKNOWLEDGED', 'EN_ROUTE', 'ON_SCENE'].includes(d.status);
+
   // Live distance from the crew's own GPS to the patient (falls back to the
   // static dispatch-time value when GPS or patient coordinates aren't available).
   const patientPt =
@@ -97,6 +103,39 @@ export const ActiveDispatchScreen: React.FC = () => {
   const shownKm = liveKm != null ? liveKm : d.km;
   const liveEta = etaMinutesFromKm(liveKm);
   const shownEta = liveEta != null ? liveEta : d.eta;
+
+  /**
+   * Stand this run down.
+   *
+   * Only up to being on scene — once the patient is aboard the server
+   * refuses, and rightly so. The reason is picked from a fixed list so the
+   * control room sees "Vehicle breakdown" rather than a blank re-listing,
+   * and can send another ambulance straight away.
+   */
+  const cancelRun = (reason: CancelReason) => {
+    setCancelOpen(false);
+    AppAlert.alert(
+      'Stand down this run?',
+      `Reason: ${reason.label}. The control room is told immediately and will send another ambulance. This cannot be undone.`,
+      [
+        { text: 'Keep the run', style: 'cancel' },
+        {
+          text: 'Stand down',
+          style: 'destructive',
+          onPress: async () => {
+            setBusy(true);
+            const res = await dispatchStore.cancelActive(reason.code);
+            setBusy(false);
+            if (!res.ok) {
+              AppAlert.alert('Could not cancel', res.message || 'Call the control room.');
+              return;
+            }
+            navigation.reset({ index: 0, routes: [{ name: homeRoute }] });
+          },
+        },
+      ],
+    );
+  };
 
   const ctaLabel = (): string => {
     switch (d.status) {
@@ -293,7 +332,45 @@ export const ActiveDispatchScreen: React.FC = () => {
             {otpBlockedForAttendant ? 'Driver verifies pickup OTP' : ctaLabel()}
           </Text>
         </Pressable>
+
+        {/* Once the patient is aboard this is no longer a tap — it is a call
+            to the control room, and the server refuses it anyway. */}
+        {canCancelRun && (
+          <Pressable
+            disabled={busy}
+            onPress={() => setCancelOpen(true)}
+            style={({ pressed }) => [styles.standDown, pressed && styles.pressed]}
+          >
+            <Text style={styles.standDownText}>Can&apos;t take this run</Text>
+          </Pressable>
+        )}
       </View>
+
+      {/* Why the run is being stood down. */}
+      <Modal visible={cancelOpen} transparent animationType="fade" onRequestClose={() => setCancelOpen(false)}>
+        <View style={styles.otpBackdrop}>
+          <View style={styles.otpCard}>
+            <Text style={styles.otpTitle}>Why can&apos;t you take this run?</Text>
+            <Text style={styles.cancelHint}>
+              The control room sees this straight away and sends another ambulance.
+            </Text>
+            <ScrollView style={{ maxHeight: verticalScale(260) }}>
+              {CREW_CANCEL_REASONS.map((r) => (
+                <Pressable
+                  key={r.code}
+                  onPress={() => cancelRun(r)}
+                  style={({ pressed }) => [styles.reasonRow, pressed && styles.pressed]}
+                >
+                  <Text style={styles.reasonText}>{r.label}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+            <Pressable style={styles.otpCancel} onPress={() => setCancelOpen(false)}>
+              <Text style={styles.otpCancelText}>Keep the run</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       {/* OTP verification before starting the trip (patient pickup) */}
       <Modal visible={otpOpen} transparent animationType="fade" onRequestClose={() => setOtpOpen(false)}>
@@ -370,6 +447,28 @@ const styles = StyleSheet.create({
   otpRow: { flexDirection: 'row', gap: scale(12), marginTop: verticalScale(18) },
   otpCancel: { flex: 1, height: verticalScale(48), borderRadius: scale(24), borderWidth: 1.5, borderColor: colors.inputBorder, alignItems: 'center', justifyContent: 'center' },
   otpCancelText: { fontFamily: fonts.semiBold, fontSize: scale(15), color: colors.inkMuted },
+  standDown: {
+    marginTop: verticalScale(10),
+    height: verticalScale(44),
+    borderRadius: scale(12),
+    borderWidth: 1,
+    borderColor: '#C92A2A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  standDownText: { fontFamily: fonts.semiBold, fontSize: scale(15), color: '#C92A2A' },
+  cancelHint: {
+    fontFamily: fonts.regular,
+    fontSize: scale(13),
+    color: colors.inkMuted,
+    marginBottom: verticalScale(10),
+  },
+  reasonRow: {
+    paddingVertical: verticalScale(13),
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEE',
+  },
+  reasonText: { fontFamily: fonts.medium, fontSize: scale(15), color: colors.textBlack },
   otpVerify: { flex: 1.4, height: verticalScale(48), borderRadius: scale(24), backgroundColor: colors.payGreen, alignItems: 'center', justifyContent: 'center' },
   otpVerifyText: { fontFamily: fonts.bold, fontSize: scale(15), color: colors.textWhite },
   bar: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: '#ECECEC', paddingHorizontal: spacing.md, paddingTop: verticalScale(12) },

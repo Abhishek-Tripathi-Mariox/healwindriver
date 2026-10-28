@@ -201,14 +201,14 @@ const accApi = (d: Dispatch) => {
   if (d.kind === 'request') return staffApi.requestAccept(d.id);
   return driverApi.accept(d.id);
 };
-const rejApi = (d: Dispatch, reason?: string) => {
+const rejApi = (d: Dispatch, reasonCode?: string, note?: string) => {
   // Attendant dismiss is LOCAL ONLY — it must never cancel the driver's dispatch.
   if (d.infoOnly) return Promise.resolve(undefined);
-  if (d.kind === 'dispatch') return staffApi.rejectDispatch(d.id, reason);
+  if (d.kind === 'dispatch') return staffApi.rejectDispatch(d.id, reasonCode, note);
   // AmbulanceRequest reject releases the ambulance + reverts to SEARCHING so
   // admin can re-dispatch (same semantics as SOS dispatch reject).
-  if (d.kind === 'request') return staffApi.requestReject(d.id);
-  return driverApi.reject(d.id, reason);
+  if (d.kind === 'request') return staffApi.requestReject(d.id, reasonCode, note);
+  return driverApi.reject(d.id, reasonCode);
 };
 const transitionApi = (d: Dispatch, to: DispatchStatus, otp?: string) => {
   // Attendant follows the driver's status over the socket — never transitions.
@@ -272,10 +272,42 @@ export const dispatchStore = {
     }
   },
 
-  async rejectIncoming(reason?: string) {
+  async rejectIncoming(reasonCode?: string, note?: string) {
     const d = state.incoming;
     set({ incoming: null });
-    if (d && !isSim(d)) await rejApi(d, reason).catch(() => undefined);
+    if (d && !isSim(d)) await rejApi(d, reasonCode, note).catch(() => undefined);
+  },
+
+  /**
+   * Stand down a run already accepted — a breakdown, a blocked road, a crew
+   * member taken ill. Until this existed the only way out after accepting was
+   * to telephone the control room, while the board still showed an ambulance
+   * on its way.
+   *
+   * Refused once the patient is aboard: the server rejects it and the card
+   * stays, which is the right outcome — that is a phone call, not a tap.
+   */
+  async cancelActive(reasonCode: string, note?: string): Promise<{ok: boolean; message?: string}> {
+    const d = state.active;
+    if (!d) return {ok: false, message: 'Nothing to cancel.'};
+    if (d.infoOnly) {
+      return {
+        ok: false,
+        message: 'Only the driver can stand this run down. Tell them, or call the control room.',
+      };
+    }
+    try {
+      if (!isSim(d)) await rejApi(d, reasonCode, note);
+      set({active: null});
+      return {ok: true};
+    } catch (e: any) {
+      return {
+        ok: false,
+        message:
+          e?.message ||
+          'Could not cancel this run. Call the control room.',
+      };
+    }
   },
 
   /**

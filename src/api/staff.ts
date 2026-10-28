@@ -23,7 +23,13 @@ export const staffApi = {
 
   // Emergency-dispatch lifecycle actions (driver-role staff act on /dispatches/:id/*).
   acceptDispatch: (id: string) => api.post(`/dispatches/${id}/accept`, {}),
-  rejectDispatch: (id: string, reason?: string) => api.post(`/dispatches/${id}/reject`, { reason }),
+  /**
+   * Stand down a run the crew cannot take — allowed right up to arriving
+   * on scene, not just while it is ringing. The SOS goes back to the control
+   * room for another ambulance.
+   */
+  rejectDispatch: (id: string, reasonCode?: string, note?: string) =>
+    api.post(`/dispatches/${id}/reject`, { reasonCode, note }),
   enRoute: (id: string) => api.post(`/dispatches/${id}/en-route`, {}),
   onScene: (id: string) => api.post(`/dispatches/${id}/on-scene`, {}),
   startDispatch: (id: string, otp?: string) => api.post(`/dispatches/${id}/start`, { otp }),
@@ -34,7 +40,8 @@ export const staffApi = {
   // Patient AmbulanceRequest dispatch actions (SOS / Book-Ambulance loop).
   activeRequest: () => api.get('/ambulance-staff/requests/active'),
   requestAccept: (id: string) => api.post(`/ambulance-staff/requests/${id}/accept`, {}),
-  requestReject: (id: string) => api.post(`/ambulance-staff/requests/${id}/reject`, {}),
+  requestReject: (id: string, reasonCode?: string, note?: string) =>
+    api.post(`/ambulance-staff/requests/${id}/reject`, { reasonCode, note }),
   // Crew raises their own emergency (accident/threat/breakdown) → control centre.
   raiseSos: (loc?: { lat?: number; lng?: number; address?: string }) =>
     api.post('/ambulance-staff/sos', loc || {}),
